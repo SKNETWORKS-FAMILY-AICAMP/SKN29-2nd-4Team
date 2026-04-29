@@ -6,3 +6,6 @@ __pycache__
 
 # env
 .env
+
+# Data files
+back/data/
