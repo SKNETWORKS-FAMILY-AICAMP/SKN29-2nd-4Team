@@ -1,16 +1,17 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from contextlib import asynccontextmanager
 
 from back.app.api.health_router import router as health_router
-
+from back.app.api.model_router import router as model_router
 from back.app.config import settings
+from back.app.infra.db import test_connection, get_conn
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
     print("🚀 Starting application...")
-    # 예: DB 연결, 모델 로딩
+    test_connection(conn=Depends(get_conn))
     # await init_db()
     # model.load()
 
@@ -31,6 +32,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health_router)
+    app.include_router(model_router)
 
     return app
 
