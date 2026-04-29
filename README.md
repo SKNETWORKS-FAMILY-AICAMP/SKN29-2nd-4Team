@@ -1,6 +1,6 @@
 ### conda 환경 통일
 ```
-conda create -f environment.yml
+conda env create -f environment.yml
 conda activate skn2nd
 ```
 
