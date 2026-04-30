@@ -39,10 +39,11 @@ def get_tx():
         conn.close()
 
 
-def test_connection(conn):
+def test_connection():
     try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT 1")
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
 
         print("✅ DB Connection success")
 
