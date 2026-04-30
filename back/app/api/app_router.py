@@ -26,6 +26,11 @@ class ReservationRankResponse(BaseModel):
 
 @router.post("/reservation-rank", response_model=ReservationRankResponse)
 def reservation_rank(request: ReservationRankRequest):
+    """
+    request => pred_batch
+    => model.predict()
+    => ranked items
+    """
     # 샘플 응답 생성
     items = []
     for i in range(10):
@@ -47,6 +52,11 @@ def reservation_rank(request: ReservationRankRequest):
 
 @router.post("/check-my-reservation", response_model=ReservationItem)
 def check_my_reservation(myreservation: Reservation):
+    """
+    reservation => pred_row
+    => model.predict()
+    => result
+    """
     delay = round(random.uniform(1, 10), 2)
     return {
         "rank": 1,
@@ -67,6 +77,10 @@ class OLearnResult(BaseModel):
     response_model=OLearnResult
 )
 def get_olearn_result(model_name: str):
+    """
+    load model report from db
+    return
+    """
     return {
         "model_name": "sample_model_20220610",
         "before": {
