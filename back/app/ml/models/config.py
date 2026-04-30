@@ -4,8 +4,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import LabelEncoder, RobustScaler
-from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import TargetEncoder
 
 # 경로
 DATA_DIR = r"C:\proj2\back\data"
@@ -25,8 +24,7 @@ FULL_TEST_CSV = os.path.join(REV02_DIR, "flight_delay_test_clean.csv")
 
 TARGET_COL = "DelayCategory"
 RANDOM_SEED = 42
-N_SPLITS = 5
-N_TRIALS = 100
+N_TRIALS = 70
 
 # 범주형 컬럼
 CAT_COLS = ["Marketing_Airline_Network", "Operating_Airline", "Origin", "Dest", "Route"]
@@ -44,36 +42,50 @@ def load_data(csv_path: str) -> tuple[pd.DataFrame, pd.Series]:
     return X, y
 
 
-def encode_categoricals(X_train: pd.DataFrame, X_test: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
-    encoders = {}
+def encode_as_category(X_train: pd.DataFrame, X_test: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+    """
+    XGBoost/LightGBM용: 범주형 컬럼을 pandas category dtype으로 변환.
+    모델 내부의 Native Categorical Split 로직이 작동하도록 합니다.
+    """
+    cat_mappings = {}
     for col in CAT_COLS:
         if col in X_train.columns:
-            le = LabelEncoder()
-            le.fit(pd.concat([X_train[col], X_test[col]]).astype(str))
-            X_train[col] = le.transform(X_train[col].astype(str))
-            X_test[col] = le.transform(X_test[col].astype(str))
-            encoders[col] = le
-    return X_train, X_test, encoders
+            all_cats = sorted(
+                pd.concat([X_train[col], X_test[col]]).astype(str).unique()
+            )
+            cat_type = pd.CategoricalDtype(categories=all_cats)
+            X_train[col] = X_train[col].astype(str).astype(cat_type)
+            X_test[col] = X_test[col].astype(str).astype(cat_type)
+            cat_mappings[col] = all_cats
+    return X_train, X_test, cat_mappings
 
 
-def scale_features(X_train: pd.DataFrame, X_test: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, RobustScaler]:
-    scaler = RobustScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    return X_train_scaled, X_test_scaled, scaler
+def encode_with_target(X_train: pd.DataFrame, X_test: pd.DataFrame, y_train: pd.Series) -> tuple[pd.DataFrame, pd.DataFrame, TargetEncoder]:
+    """
+    RandomForest용: TargetEncoder로 범주형 변환.
+    각 카테고리를 타겟 변수의 평균값으로 치환하여 순서 의미가 있는 수치로 변환합니다.
+    """
+    for col in CAT_COLS:
+        if col in X_train.columns:
+            X_train[col] = X_train[col].astype(str)
+            X_test[col] = X_test[col].astype(str)
 
-
-def get_cv():
-    return StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_SEED)
+    cols_to_encode = [c for c in CAT_COLS if c in X_train.columns]
+    te = TargetEncoder(smooth="auto", target_type="continuous", random_state=RANDOM_SEED)
+    X_train[cols_to_encode] = te.fit_transform(X_train[cols_to_encode], y_train)
+    X_test[cols_to_encode] = te.transform(X_test[cols_to_encode])
+    return X_train, X_test, te
 
 
 def compute_class_weights(y: pd.Series) -> dict:
+    """타겟 클래스별 가중치를 계산합니다 (sqrt 감쇠 적용)."""
     classes = np.unique(y)
     n_samples = len(y)
     n_classes = len(classes)
     weights = {}
     for c in classes:
-        weights[c] = n_samples / (n_classes * np.sum(y == c))
+        raw = n_samples / (n_classes *[] np.sum(y == c))
+        weights[c] = np.sqrt(raw)
     return weights
 
 
@@ -91,10 +103,11 @@ def load_params(filename: str) -> dict:
         return json.load(f)
 
 
-def save_model(model, scaler, encoders, filename: str):
+def save_model(model, encoders, filename: str):
+    """모델과 인코더를 하나의 번들로 저장합니다."""
     ensure_dirs()
     path = os.path.join(MODELS_DIR, filename)
-    artifact = {"model": model, "scaler": scaler, "encoders": encoders}
+    artifact = {"model": model, "encoders": encoders}
     joblib.dump(artifact, path)
     print(f"모델 저장: {path}")
 
