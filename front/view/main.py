@@ -16,35 +16,44 @@ def show_main_page():
     if os.path.exists(img_path):
         img_base64 = get_base64_of_bin_file(img_path)
         
-        # 2. 와이드 모드에서 여백을 완전히 제거하기 위한 CSS
+        # 2. 사이드바와 메인 영역의 평화로운 공존을 위한 CSS
         st.markdown(
             """
             <style>
-                /* 메인 컨테이너 최대 너비 제한 해제 및 패딩 제거 */
-                .block-container {
-                    max-width: 100% !important;
-                    padding-top: 0rem !important;
-                    padding-bottom: 0rem !important;
-                    padding-left: 0rem !important;
-                    padding-right: 0rem !important;
-                }
-                
-                /* 앱 전체 배경과 상단 여백 조절 */
-                .stApp {
-                    margin-top: -65px;
+                /* [사이드바 강제 고정] 메인 영역이 올라가도 사이드바는 제자리에 둡니다 */
+                [data-testid="stSidebar"] {
+                    position: fixed !important;
+                    top: 0px !important;
+                    visibility: visible !important;
+                    z-index: 999999 !important; /* 화면 최상단으로 올림 */
                 }
 
-                header { visibility: hidden; }
+                /* [메인 영역 패딩 제거] */
+                [data-testid="stAppViewBlockContainer"] {
+                    max-width: 100% !important;
+                    padding: 0rem !important;
+                }
+
+                /* [헤더 숨기기] */
+                header { 
+                    visibility: hidden !important;
+                    height: 0px !important;
+                }
+
+                /* [이미지 배너만 위로] */
+                .full-width-banner {
+                    margin-top: -50px; /* 사이드바에 영향을 주지 않고 이 박스만 올림 */
+                    width: 100%;
+                }
             </style>
             """,
             unsafe_allow_html=True
         )
 
-        # 3. 배너 구성 (높이를 키우고 텍스트 크기를 조절하여 웅장하게 변경)
+        # 3. 배너 구성 (class="full-width-banner" 추가)
         st.markdown(
             f"""
-            <div style="
-                width: 100%;
+            <div class="full-width-banner" style="
                 height: 500px;
                 background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('data:image/jpg;base64,{img_base64}');
                 background-size: cover;
@@ -56,7 +65,6 @@ def show_main_page():
                 text-align: center;
                 color: white;
                 text-shadow: 2px 2px 8px rgba(0,0,0,0.7);
-                margin: 0;
             ">
                 <h1 style="font-size: 80px; margin: 0; font-weight: 900; letter-spacing: -2px;">Sky Cast</h1>
                 <p style="font-size: 26px; line-height: 1.6; margin-top: 20px; font-weight: 400; opacity: 0.9;">
@@ -67,8 +75,6 @@ def show_main_page():
             """,
             unsafe_allow_html=True
         )
-    else:
-        st.error("이미지 파일을 찾을 수 없습니다.")
 
     # 4. 하단 영역 (내용물은 중앙에 적절히 모이도록 패딩 부여)
     # 가로로 너무 퍼지면 읽기 힘들기 때문에 하단만 max-width를 줍니다.
