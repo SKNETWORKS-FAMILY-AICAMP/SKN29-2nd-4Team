@@ -2,20 +2,20 @@ import pandas as pd
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
 
-COLLINEAR_FEATURES = [
-    "expected_elapsed_mean",
-    "expected_elapsed_hour_mean",
-    "schedule_buffer_hour",
-    "schedule_buffer",
-    "route_hour_airtime_mean",
-    "route_airtime_mean",
-    "origin_temp_mean_c",
-    "origin_temp_min_c",
-    "dest_temp_mean_c",
-    "dest_temp_min_c",
-    "Distance",
-    "FlightDate"
-]
+# COLLINEAR_FEATURES = [
+#     "expected_elapsed_mean",
+#     "expected_elapsed_hour_mean",
+#     "schedule_buffer_hour",
+#     "schedule_buffer",
+#     "route_hour_airtime_mean",
+#     "route_airtime_mean",
+#     "origin_temp_mean_c",
+#     "origin_temp_min_c",
+#     "dest_temp_mean_c",
+#     "dest_temp_min_c",
+#     "Distance",
+#     "FlightDate"
+# ]
 
 
 def check_vif(csv_path: str, target_col: str = None, sample_size: int = 30000, drop_cols: list = None) -> pd.DataFrame:

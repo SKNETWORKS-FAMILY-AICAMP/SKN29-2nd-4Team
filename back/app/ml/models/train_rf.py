@@ -6,10 +6,11 @@ import time
 import numpy as np
 import optuna
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import f1_score
 from config import (
     HPO_TRAIN_CSV, HPO_TEST_CSV, FULL_TRAIN_CSV, FULL_TEST_CSV, RANDOM_SEED, N_TRIALS,
-    load_data, encode_categoricals, scale_features, get_cv,
+    load_data, encode_with_target,
     compute_class_weights, save_params, load_params,
     save_model, save_feature_importance,
 )
@@ -19,11 +20,9 @@ PARAMS_FILE = "rf_best_params.json"
 MODEL_FILE = "rf_model.pkl"
 
 
-from sklearn.model_selection import cross_val_score, train_test_split
-
 def hpo():
     """Optuna를 활용하여 모델의 최적 하이퍼파라미터를 탐색합니다."""
-    # 1. HPO용 데이터 로드 (미니배치)
+    # 1. HPO용 데이터 로드 (미니배치에서 10% 추출)
     X_train_full, y_train_full = load_data(HPO_TRAIN_CSV)
     _, X_hpo, _, y_hpo = train_test_split(
         X_train_full, y_train_full, test_size=0.1, stratify=y_train_full, random_state=RANDOM_SEED
@@ -34,9 +33,8 @@ def hpo():
         X_hpo, y_hpo, test_size=0.2, stratify=y_hpo, random_state=RANDOM_SEED
     )
 
-    X_htr, X_hval, _ = encode_categoricals(X_htr, X_hval)
-    X_htr_scaled, X_hval_scaled, _ = scale_features(X_htr, X_hval)
-    class_weights = compute_class_weights(y_htr)
+    # 3. TargetEncoder로 범주형 변환 (RF는 category dtype 미지원)
+    X_htr, X_hval, _ = encode_with_target(X_htr, X_hval, y_htr)
 
     def objective(trial):
         params = {
@@ -50,21 +48,16 @@ def hpo():
             "n_jobs": -1,
         }
         model = RandomForestClassifier(**params)
-        sample_weights = np.array([class_weights[c] for c in y_htr])
 
-        model.fit(X_htr_scaled, y_htr, sample_weight=sample_weights)
-        
-        from sklearn.metrics import f1_score
-        y_pred = model.predict(X_hval_scaled)
+        model.fit(X_htr, y_htr)
+
+        y_pred = model.predict(X_hval)
         return f1_score(y_hval, y_pred, average="macro")
 
     study = optuna.create_study(direction="maximize")
     study.optimize(objective, n_trials=N_TRIALS, show_progress_bar=True)
 
     best_params = study.best_params
-    best_params["random_state"] = RANDOM_SEED
-    best_params["n_jobs"] = -1
-
     save_params(best_params, PARAMS_FILE)
     print(f"Best F1 Macro: {study.best_value:.4f}")
 
@@ -82,22 +75,26 @@ def train(mode: str = "mini"):
 
     X_train, y_train = load_data(train_csv)
     X_test, _ = load_data(test_csv)
-    X_train, X_test, encoders = encode_categoricals(X_train, X_test)
+    X_train, X_test, encoders = encode_with_target(X_train, X_test, y_train)
 
     feature_names = X_train.columns.tolist()
-    X_train_scaled, X_test_scaled, scaler = scale_features(X_train, X_test)
-
-    class_weights = compute_class_weights(y_train)
-    sample_weights = np.array([class_weights[c] for c in y_train])
 
     params = load_params(PARAMS_FILE)
+
+    # Optuna에 저장되지 않는 고정 파라미터 주입
+    params.update({
+        "random_state": RANDOM_SEED,
+        "n_jobs": -1,
+        "verbose": 1,
+    })
+
     model = RandomForestClassifier(**params)
 
     start = time.time()
-    model.fit(X_train_scaled, y_train, sample_weight=sample_weights)
+    model.fit(X_train, y_train)
     elapsed = time.time() - start
 
-    save_model(model, scaler, encoders, MODEL_FILE)
+    save_model(model, encoders, MODEL_FILE)
     save_feature_importance(model.feature_importances_, feature_names, "rf")
     print(f"학습 완료 ({elapsed:.1f}초 소요)")
 
