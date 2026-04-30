@@ -11,8 +11,7 @@ from sklearn.metrics import f1_score
 from config import (
     HPO_TRAIN_CSV, HPO_TEST_CSV, FULL_TRAIN_CSV, FULL_TEST_CSV, RANDOM_SEED, N_TRIALS,
     load_data, encode_as_category,
-    compute_class_weights, save_params, load_params,
-    save_model, save_feature_importance,
+    save_params, load_params, save_model, save_feature_importance,
 )
 
 
@@ -21,7 +20,7 @@ MODEL_FILE = "lgbm_model.pkl"
 
 
 def hpo():
-    """Optuna를 활용하여 모델의 최적 하이퍼파라미터를 탐색합니다."""
+    """Optuna를 활용하여 최적 하이퍼파라미터를 탐색합니다."""
     X_train_full, y_train_full = load_data(HPO_TRAIN_CSV)
     _, X_hpo, _, y_hpo = train_test_split(
         X_train_full, y_train_full, test_size=0.1, stratify=y_train_full, random_state=RANDOM_SEED
@@ -32,7 +31,6 @@ def hpo():
     )
 
     X_htr, X_hval, _ = encode_as_category(X_htr, X_hval)
-    class_weights = compute_class_weights(y_htr)
 
     def objective(trial):
         params = {
@@ -43,17 +41,14 @@ def hpo():
             "colsample_bytree": trial.suggest_float("colsample_bytree", 0.6, 1.0),
             "min_child_samples": trial.suggest_int("min_child_samples", 10, 50),
             "reg_lambda": trial.suggest_float("reg_lambda", 1e-3, 10.0, log=True),
-            "class_weight": trial.suggest_categorical("class_weight", ["balanced", None]),
             "random_state": RANDOM_SEED,
             "n_jobs": -1,
             "verbose": -1,
         }
         model = LGBMClassifier(**params)
-        sample_weights = np.array([class_weights[c] for c in y_htr])
 
         model.fit(
             X_htr, y_htr,
-            sample_weight=sample_weights,
             eval_set=[(X_hval, y_hval)],
             callbacks=[early_stopping(50, verbose=False), log_evaluation(0)]
         )
@@ -84,9 +79,6 @@ def train(mode: str = "mini"):
 
     feature_names = X_train.columns.tolist()
 
-    class_weights = compute_class_weights(y_train)
-    sample_weights = np.array([class_weights[c] for c in y_train])
-
     params = load_params(PARAMS_FILE)
     params.update({
         "random_state": RANDOM_SEED,
@@ -99,7 +91,6 @@ def train(mode: str = "mini"):
     start = time.time()
     model.fit(
         X_train, y_train,
-        sample_weight=sample_weights,
         eval_set=[(X_test, y_test)],
         callbacks=[early_stopping(50, verbose=False), log_evaluation(100)],
     )

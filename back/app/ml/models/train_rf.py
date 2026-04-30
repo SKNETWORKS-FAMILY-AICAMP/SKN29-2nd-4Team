@@ -11,8 +11,7 @@ from sklearn.metrics import f1_score
 from config import (
     HPO_TRAIN_CSV, HPO_TEST_CSV, FULL_TRAIN_CSV, FULL_TEST_CSV, RANDOM_SEED, N_TRIALS,
     load_data, encode_with_target,
-    compute_class_weights, save_params, load_params,
-    save_model, save_feature_importance,
+    save_params, load_params, save_model, save_feature_importance,
 )
 
 
@@ -21,19 +20,16 @@ MODEL_FILE = "rf_model.pkl"
 
 
 def hpo():
-    """Optuna를 활용하여 모델의 최적 하이퍼파라미터를 탐색합니다."""
-    # 1. HPO용 데이터 로드 (미니배치에서 10% 추출)
+    """Optuna를 활용하여 최적 하이퍼파라미터를 탐색합니다."""
     X_train_full, y_train_full = load_data(HPO_TRAIN_CSV)
     _, X_hpo, _, y_hpo = train_test_split(
         X_train_full, y_train_full, test_size=0.1, stratify=y_train_full, random_state=RANDOM_SEED
     )
 
-    # 2. HPO용 Train / Valid 분리
     X_htr, X_hval, y_htr, y_hval = train_test_split(
         X_hpo, y_hpo, test_size=0.2, stratify=y_hpo, random_state=RANDOM_SEED
     )
 
-    # 3. TargetEncoder로 범주형 변환 (RF는 category dtype 미지원)
     X_htr, X_hval, _ = encode_with_target(X_htr, X_hval, y_htr)
 
     def objective(trial):
@@ -43,12 +39,10 @@ def hpo():
             "min_samples_split": trial.suggest_int("min_samples_split", 2, 20),
             "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 10),
             "max_features": trial.suggest_categorical("max_features", ["sqrt", "log2", 0.5]),
-            "class_weight": trial.suggest_categorical("class_weight", ["balanced", "balanced_subsample"]),
             "random_state": RANDOM_SEED,
             "n_jobs": -1,
         }
         model = RandomForestClassifier(**params)
-
         model.fit(X_htr, y_htr)
 
         y_pred = model.predict(X_hval)
@@ -63,9 +57,7 @@ def hpo():
 
 
 def train(mode: str = "mini"):
-    """
-    지정된 데이터 모드('mini' 또는 'full')에 따라 모델을 학습하고 결과를 저장합니다.
-    """
+    """지정된 데이터 모드에 따라 모델을 학습하고 결과를 저장합니다."""
     if mode == "full":
         train_csv, test_csv = FULL_TRAIN_CSV, FULL_TEST_CSV
         print("전체 데이터 학습 시작")
@@ -80,8 +72,6 @@ def train(mode: str = "mini"):
     feature_names = X_train.columns.tolist()
 
     params = load_params(PARAMS_FILE)
-
-    # Optuna에 저장되지 않는 고정 파라미터 주입
     params.update({
         "random_state": RANDOM_SEED,
         "n_jobs": -1,
