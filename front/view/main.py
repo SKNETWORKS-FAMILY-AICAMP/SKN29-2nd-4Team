@@ -1,11 +1,6 @@
 import streamlit as st
 import os
 import base64
-st.set_page_config(
-    page_title="Sky Caster",
-    layout="wide",  # 화면 꽉 채우기
-    initial_sidebar_state="expanded"
-)
 
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
@@ -13,42 +8,109 @@ def get_base64_of_bin_file(bin_file):
     return base64.b64encode(data).decode()
 
 def show_main_page():
-    # 1. 이미지 경로 설정 (기존 동일)
     current_dir = os.path.dirname(os.path.abspath(__file__))
     img_path = os.path.join(current_dir, "../resource", "airport.jpg")
 
-    if os.path.exists(img_path):
-        img_base64 = get_base64_of_bin_file(img_path)
-        
-        # 2. 사이드바와 메인 영역의 평화로운 공존을 위한 CSS
-        st.markdown(
+    # --- 카드 클릭 최적화 및 레이아웃 CSS ---
+    st.markdown(
         """
         <style>
-            /* 사이드바와 겹치지 않도록 너비와 패딩 조정 */
+            /* 1. 전체 컨테이너 패딩 완전 제거 */
             [data-testid="stAppViewBlockContainer"] {
-                max-width: 100%; 
-                padding-top: 0rem !important;
-                padding-right: 0rem !important;
-                padding-left: 0rem !important;
-                /* 하단 패딩은 조금 남겨두는 것이 좋습니다 */
-                padding-bottom: 2rem !important; 
+                max-width: 100% !important;
+                padding: 0rem !important;
+                margin: 0rem !important;
             }
 
-            /* 배너가 헤더 영역까지 올라가도록 조정 */
+            /* 2. 상단 헤더 투명화 */
             [data-testid="stHeader"] {
-                background-color: rgba(0,0,0,0); /* 헤더 투명화 */
+                background-color: rgba(0,0,0,0);
+            }
+
+            /* 3. 배너 설정 */
+            .full-width-banner {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            /* 4. 카드 섹션 전용 여백 */
+            .main-content-wrapper {
+                padding: 0 10% 50px 10%;
+                margin-top: 50px;
+            }
+
+            @keyframes fadeInUp {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .banner-text { animation: fadeInUp 1s ease-out; }
+
+            /* 5. 서비스 카드 디자인 (클릭 가능 피드백 추가) */
+            .service-card {
+                background-color: white;
+                border-radius: 20px;
+                padding: 35px 25px;
+                text-align: center;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+                transition: all 0.3s ease;
+                border: 1px solid #eee;
+                height: 300px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                cursor: pointer; /* 마우스 포인터 변경 */
+            }
+            
+            .service-card:hover {
+                transform: translateY(-10px);
+                box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                border-color: #001f3f;
+            }
+
+            /* 버튼 스타일링 (카드와 조화롭게) */
+            .stButton > button {
+                width: 100%;
+                border-radius: 12px;
+                border: 1px solid #eee;
+                background-color: white;
+                color: #001f3f;
+                font-weight: 600;
+            }
+            
+            .stButton > button:hover {
+                border-color: #001f3f;
+                color: #001f3f;
+                background-color: #f8f9fa;
             }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-        # 3. 배너 구성 (class="full-width-banner" 추가)
+    # --- 카드 클릭 시 페이지 이동을 위한 JavaScript 추가 ---
+    st.markdown(
+        """
+        <script>
+            // 카드 클릭 시 해당 링크로 이동하는 함수
+            function navigateTo(page) {
+                // Streamlit의 멀티페이지 구조에서 파일명을 직접 호출
+                window.parent.location.assign(window.parent.location.origin + '/' + page);
+            }
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # 히어로 배너 영역
+    if os.path.exists(img_path):
+        img_base64 = get_base64_of_bin_file(img_path)
         st.markdown(
             f"""
             <div class="full-width-banner" style="
-                height: 500px;
-                background-image: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('data:image/jpg;base64,{img_base64}');
+                height: 410px;
+                background-image: linear-gradient(rgba(0, 31, 63, 0.5), rgba(0, 31, 63, 0.5)), url('data:image/jpg;base64,{img_base64}');
                 background-size: cover;
                 background-position: center;
                 display: flex;
@@ -57,104 +119,78 @@ def show_main_page():
                 align-items: center;
                 text-align: center;
                 color: white;
-                text-shadow: 2px 2px 8px rgba(0,0,0,0.7);
             ">
-                <h1 style="font-size: 80px; margin: 0; font-weight: 900; letter-spacing: -2px;">Sky Cast</h1>
-                <p style="font-size: 26px; line-height: 1.6; margin-top: 20px; font-weight: 400; opacity: 0.9;">
-                    Sky Cast는 사용자의 기분 좋은 여행을 위해<br>
-                    기상데이터를 바탕으로 최적의 항공 서비스를 제공합니다.
-                </p>
+                <div class="banner-text">
+                    <h1 style="font-size: 65px; margin: 0; font-weight: 900; letter-spacing: -2px;">SKY CASTER</h1>
+                    <div style="width: 60px; height: 3px; background: #ffffff; margin: 20px auto;"></div>
+                    <p style="font-size: 20px; line-height: 1.6; font-weight: 300; opacity: 0.95;">
+                        실시간 기상 데이터를 분석하여<br>
+                        당신의 여정에 가장 안전하고 정확한 항로를 제안합니다.
+                    </p>
+                </div>
             </div>
             """,
             unsafe_allow_html=True
         )
 
-    # 4. 하단 영역
+    # 서비스 선택 섹션
+    st.markdown('<div class="main-content-wrapper">', unsafe_allow_html=True)
+    
     st.markdown(
         """
-        <div style="max-width: 1000px; margin: 0 auto; padding: 0 2rem;">
-            <hr style="border: 0.5px solid #ddd; margin-top: 50px;">
-            <div style="text-align: center; margin-top: 40px; margin-bottom: 30px;">
-                <h2 style="margin-bottom: 20px;">
-                    <span style="
-                        /* 그라데이션 효과 적용: 왼쪽(남색)에서 오른쪽(약간 밝은 남색)으로 */
-                        background-image: linear-gradient(135deg, #001f3f 0%, #003366 100%);
-                        color: white;              /* 배경이 어두우니 글자는 흰색으로 */
-                        padding: 12px 45px;        /* 여백 살짝 조정 */
-                        border-radius: 50px;       /* 캡슐 모양 */
-                        display: inline-block;
-                        font-weight: bold;
-                        font-size: 26px;
-                        box-shadow: 0 4px 15px rgba(0,0,0,0.1); /* 은은한 그림자 추가 */
-                    ">
-                        나에게 필요한 서비스 확인하기
-                    </span>
-                </h2>
-            </div>
+        <div style="text-align: center; margin-bottom: 40px;">
+            <p style="color: #007bff; font-weight: 700; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;">Select Service</p>
+            <h2 style="font-size: 32px; color: #001f3f; font-weight: 800;">어떤 도움이 필요하신가요?</h2>
         </div>
         """, 
         unsafe_allow_html=True
     )
 
-    # ... (상단 배너 및 "서비스 확인하기" 영역은 유지) ...
+    col1, col2, col3, col4, col5 = st.columns([0.5, 4, 1, 4, 0.5])
 
-   # 5. 버튼 영역 커스텀 스타일 및 배치
+    # 1. 최적 노선 분석 카드 (onclick 이벤트 추가)
+    with col2:
+        st.markdown("""
+            <div class="service-card" onclick="window.parent.location.assign(window.parent.location.href + 'route')">
+                <div style="font-size: 45px; margin-bottom: 15px;">🛫</div>
+                <div style="font-size: 22px; font-weight: 700; color: #001f3f; margin-bottom: 12px;">최적 노선 분석</div>
+                <div style="font-size: 15px; color: #666; line-height: 1.5;">
+                    출발 전, 기상 상황을 고려하여<br>지연 가능성이 가장 낮은 노선을 추천합니다.
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        # 버튼 클릭 시 페이지 이동
+        if st.button("노선 확인하기", key="main_btn_route", use_container_width=True):
+            st.session_state.page = "route"
+            st.rerun()
+
+    # 2. 지연 시간 예측 카드 (onclick 이벤트 추가)
+    with col4:
+        st.markdown("""
+            <div class="service-card" onclick="window.parent.location.assign(window.parent.location.href + 'delay')">
+                <div style="font-size: 45px; margin-bottom: 15px;">🛬</div>
+                <div style="font-size: 22px; font-weight: 700; color: #001f3f; margin-bottom: 12px;">지연 시간 예측</div>
+                <div style="font-size: 15px; color: #666; line-height: 1.5;">
+                    이미 예약한 항공편이 있다면,<br>현재 기상 조건에 따른 도착 시간을 예측합니다.
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        # 버튼 클릭 시 페이지 이동
+        if st.button("지연 예측하기", key="main_btn_delay", use_container_width=True):
+            st.session_state.page = "delay"
+            st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # 푸터 영역
     st.markdown(
         """
-        <style>
-            /* 버튼 기본 스타일: 크기 1.2배 확대, 검은색 테두리, 연남색 배경 */
-            div.stButton > button {
-                width: 100%;
-                height: auto !important;
-                padding-top: 20px !important;    /* 상하 패딩 확대로 크기 키움 */
-                padding-bottom: 20px !important;
-                font-size: 24px !important;      /* 글자 크기 확대 */
-                font-weight: bold !important;
-                border: 3px solid #000000 !important; /* 선명한 검은색 테두리 */
-                border-radius: 12px !important;
-                
-                /* 요청하신 연한 남색 배경색 */
-                background-color: #b0c4de !important; 
-                color: #000000 !important;           /* 검정색 글자 */
-                
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.15); /* 입체감을 위한 그림자 */
-            }
-
-            /* 버튼 마우스 호버 효과 */
-            div.stButton > button:hover {
-                /* 호버 시 배경색을 살짝 더 진하게 변경 */
-                background-color: #a2b9d6 !important; 
-                border-color: #000000 !important;
-                transform: translateY(-3px); /* 위로 살짝 들리는 효과 */
-                box-shadow: 0 6px 15px rgba(0,0,0,0.2);
-            }
-
-            /* 버튼 클릭 시 효과 */
-            div.stButton > button:active {
-                transform: translateY(-1px);
-            }
-        </style>
+        <div style="text-align: center; margin-top: 30px; padding-bottom: 40px; color: #aaa; font-size: 13px;">
+            © 2026 SKY CASTER. All Rights Reserved.
+        </div>
         """,
         unsafe_allow_html=True
     )
 
-    # 버튼 배치 (화면 중앙 정렬을 위해 컬럼 사용)
-    container = st.container()
-    with container:
-        # 좌우 여백을 주어 버튼이 너무 퍼지지 않게 조절
-        _, col_mid, _ = st.columns([1, 8, 1]) 
-        with col_mid:
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button("🛫 항공 예약하기 전이에요.", use_container_width=True, key="main_btn_route"):
-                    st.session_state.page = "route"
-                    st.rerun()
-            with c2:
-                # 두 버튼 모두 동일한 스타일이 적용됩니다.
-                if st.button("🛬 항공 예약 완료했어요!", use_container_width=True, key="main_btn_delay"):
-                    st.session_state.page = "delay"
-                    st.rerun()
-    
-    # 하단 여백 추가
-    st.write("\n" * 5)
+if __name__ == "__main__":
+    show_main_page()
