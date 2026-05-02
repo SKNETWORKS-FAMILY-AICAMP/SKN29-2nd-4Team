@@ -1,7 +1,11 @@
 import streamlit as st
-st.set_page_config(layout="wide")
 import os
 import base64
+st.set_page_config(
+    page_title="Sky Caster",
+    layout="wide",  # 화면 꽉 채우기
+    initial_sidebar_state="expanded"
+)
 
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
@@ -18,37 +22,26 @@ def show_main_page():
         
         # 2. 사이드바와 메인 영역의 평화로운 공존을 위한 CSS
         st.markdown(
-            """
-            <style>
-                /* [사이드바 강제 고정] 메인 영역이 올라가도 사이드바는 제자리에 둡니다 */
-                [data-testid="stSidebar"] {
-                    position: fixed !important;
-                    top: 0px !important;
-                    visibility: visible !important;
-                    z-index: 999999 !important; /* 화면 최상단으로 올림 */
-                }
+        """
+        <style>
+            /* 사이드바와 겹치지 않도록 너비와 패딩 조정 */
+            [data-testid="stAppViewBlockContainer"] {
+                max-width: 100%; 
+                padding-top: 0rem !important;
+                padding-right: 0rem !important;
+                padding-left: 0rem !important;
+                /* 하단 패딩은 조금 남겨두는 것이 좋습니다 */
+                padding-bottom: 2rem !important; 
+            }
 
-                /* [메인 영역 패딩 제거] */
-                [data-testid="stAppViewBlockContainer"] {
-                    max-width: 100% !important;
-                    padding: 0rem !important;
-                }
-
-                /* [헤더 숨기기] */
-                header { 
-                    visibility: hidden !important;
-                    height: 0px !important;
-                }
-
-                /* [이미지 배너만 위로] */
-                .full-width-banner {
-                    margin-top: -50px; /* 사이드바에 영향을 주지 않고 이 박스만 올림 */
-                    width: 100%;
-                }
-            </style>
-            """,
-            unsafe_allow_html=True
-        )
+            /* 배너가 헤더 영역까지 올라가도록 조정 */
+            [data-testid="stHeader"] {
+                background-color: rgba(0,0,0,0); /* 헤더 투명화 */
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
         # 3. 배너 구성 (class="full-width-banner" 추가)
         st.markdown(
@@ -76,37 +69,92 @@ def show_main_page():
             unsafe_allow_html=True
         )
 
-    # 4. 하단 영역 (내용물은 중앙에 적절히 모이도록 패딩 부여)
-    # 가로로 너무 퍼지면 읽기 힘들기 때문에 하단만 max-width를 줍니다.
+    # 4. 하단 영역
     st.markdown(
         """
         <div style="max-width: 1000px; margin: 0 auto; padding: 0 2rem;">
-            <hr style="border: 0.5px solid #eee; margin-top: 50px;">
-            <div style="text-align: center; margin-top: 40px;">
-                <!-- 제목 부분에 파란색 밑줄 추가 -->
-                <h2 style="margin-bottom: 20px; color: #333;">
-                    <span style="border-bottom: 5px solid #007bff; padding-bottom: 5px;">
-                        🔍 나에게 필요한 서비스 확인하기
+            <hr style="border: 0.5px solid #ddd; margin-top: 50px;">
+            <div style="text-align: center; margin-top: 40px; margin-bottom: 30px;">
+                <h2 style="margin-bottom: 20px;">
+                    <span style="
+                        /* 그라데이션 효과 적용: 왼쪽(남색)에서 오른쪽(약간 밝은 남색)으로 */
+                        background-image: linear-gradient(135deg, #001f3f 0%, #003366 100%);
+                        color: white;              /* 배경이 어두우니 글자는 흰색으로 */
+                        padding: 12px 45px;        /* 여백 살짝 조정 */
+                        border-radius: 50px;       /* 캡슐 모양 */
+                        display: inline-block;
+                        font-weight: bold;
+                        font-size: 26px;
+                        box-shadow: 0 4px 15px rgba(0,0,0,0.1); /* 은은한 그림자 추가 */
+                    ">
+                        나에게 필요한 서비스 확인하기
                     </span>
                 </h2>
-                <p style="font-size: 60px; margin: 0; color: #ccc;">▼</p> 
             </div>
         </div>
         """, 
         unsafe_allow_html=True
     )
 
-    # 버튼 영역도 하단 컨테이너 안으로 배치
+    # ... (상단 배너 및 "서비스 확인하기" 영역은 유지) ...
+
+   # 5. 버튼 영역 커스텀 스타일 및 배치
+    st.markdown(
+        """
+        <style>
+            /* 버튼 기본 스타일: 크기 1.2배 확대, 검은색 테두리, 연남색 배경 */
+            div.stButton > button {
+                width: 100%;
+                height: auto !important;
+                padding-top: 20px !important;    /* 상하 패딩 확대로 크기 키움 */
+                padding-bottom: 20px !important;
+                font-size: 24px !important;      /* 글자 크기 확대 */
+                font-weight: bold !important;
+                border: 3px solid #000000 !important; /* 선명한 검은색 테두리 */
+                border-radius: 12px !important;
+                
+                /* 요청하신 연한 남색 배경색 */
+                background-color: #b0c4de !important; 
+                color: #000000 !important;           /* 검정색 글자 */
+                
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.15); /* 입체감을 위한 그림자 */
+            }
+
+            /* 버튼 마우스 호버 효과 */
+            div.stButton > button:hover {
+                /* 호버 시 배경색을 살짝 더 진하게 변경 */
+                background-color: #a2b9d6 !important; 
+                border-color: #000000 !important;
+                transform: translateY(-3px); /* 위로 살짝 들리는 효과 */
+                box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+            }
+
+            /* 버튼 클릭 시 효과 */
+            div.stButton > button:active {
+                transform: translateY(-1px);
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # 버튼 배치 (화면 중앙 정렬을 위해 컬럼 사용)
     container = st.container()
     with container:
-        _, col_mid, _ = st.columns([1, 8, 1]) # 양 옆에 여백을 주어 버튼이 너무 커지지 않게 조절
+        # 좌우 여백을 주어 버튼이 너무 퍼지지 않게 조절
+        _, col_mid, _ = st.columns([1, 8, 1]) 
         with col_mid:
             c1, c2 = st.columns(2)
             with c1:
-                if st.button("🛫 항공 예약하기 전이에요.", use_container_width=True):
+                if st.button("🛫 항공 예약하기 전이에요.", use_container_width=True, key="main_btn_route"):
                     st.session_state.page = "route"
                     st.rerun()
             with c2:
-                if st.button("🛬 항공 예약 완료했어요!", use_container_width=True):
+                # 두 버튼 모두 동일한 스타일이 적용됩니다.
+                if st.button("🛬 항공 예약 완료했어요!", use_container_width=True, key="main_btn_delay"):
                     st.session_state.page = "delay"
                     st.rerun()
+    
+    # 하단 여백 추가
+    st.write("\n" * 5)

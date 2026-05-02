@@ -11,11 +11,6 @@ def show_model_page():
     if 'sim_days' not in st.session_state:
         st.session_state.sim_days = 10
 
-    # 1. 상단 내비게이션
-    if st.button("🏠 메인으로"):
-        st.session_state.page = "main"
-        st.rerun()
-
     # --- 1. 제목 영역 ---
     st.markdown(
         """
