@@ -9,8 +9,9 @@ CREATE TABLE airport_info(
     airport_code CHAR(3) PRIMARY KEY, 
     airport_name_en VARCHAR(128), 
     airport_name_ko VARCHAR(128), 
-    taxiout_mean FLOAT, 
-    taxiin_mean FLOAT
+    LATITUDE FLOAT,
+    LONGITUDE FLOAT,
+    disabled INT
 );
 
 CREATE TABLE airtime (
