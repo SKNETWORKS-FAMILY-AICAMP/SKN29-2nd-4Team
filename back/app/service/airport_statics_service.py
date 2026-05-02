@@ -50,6 +50,14 @@ def get_taxiin(conn, airport_code: str, hour: int):
     taxiin_actual = taxiin_actual or taxiin_mean
     return taxiin_mean, taxiin_actual
 
+
+def get_mean_triptime(conn, origin, dest):
+    taxiout_mean, _ = get_taxiout(conn, origin, 1)
+    airtime_mean, _ = get_airtime(conn, f"{origin}_{dest}", 1)
+    taxiin_mean, _ = get_taxiin(conn, dest, 1)
+    return taxiout_mean + airtime_mean + taxiin_mean
+
+
 def get_all_airports(conn):
     rows = find_all_active_airports(conn)
 

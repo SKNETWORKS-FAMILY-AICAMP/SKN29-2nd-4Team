@@ -12,7 +12,7 @@ def get_connection():
         password=settings.DB_PASSWORD.get_secret_value(),
         database=settings.DB_NAME,
         charset="utf8mb4",
-        cursorclass=pymysql.cursors.DictCursor,
+        cursorclass=pymysql.cursors.Cursor,
         autocommit=False,
     )
 
