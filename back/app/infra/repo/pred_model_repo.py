@@ -1,7 +1,3 @@
-# back/app/infra/pred_models.py
-from fastapi import Depends
-from back.app.infra.db import get_conn
-
 import json
 
 

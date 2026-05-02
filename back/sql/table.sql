@@ -30,3 +30,8 @@ CREATE TABLE taxi_inout (
 
     PRIMARY KEY (airport_code, operation_hour)
 );
+
+CREATE TABLE airline (
+    code CHAR(2) PRIMARY KEY,
+    name VARCHAR(128) NOT NULL
+);

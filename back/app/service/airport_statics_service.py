@@ -1,7 +1,8 @@
 from statistics import mean
 
-from back.app.infra.airtime_repo import find_airtime_by_route
-from back.app.infra.taxi_inout_repo import find_taxi_inout_by_airport
+from back.app.infra.repo.airtime_repo import find_airtime_by_route
+from back.app.infra.repo.taxi_inout_repo import find_taxi_inout_by_airport
+from back.app.infra.repo.airport_info_repo import find_all_active_airports, find_airport_coords
 
 
 def get_airtime(conn, route: str, hour: int):
@@ -48,3 +49,23 @@ def get_taxiin(conn, airport_code: str, hour: int):
 
     taxiin_actual = taxiin_actual or taxiin_mean
     return taxiin_mean, taxiin_actual
+
+def get_all_airports(conn):
+    rows = find_all_active_airports(conn)
+
+    return [
+        {
+            "airport_code": r[0],
+            "airport_name_ko": r[1],
+        }
+        for r in rows
+    ]
+
+
+def get_airport_coords(conn, airport_code: str):
+    coords = find_airport_coords(conn, airport_code)
+
+    if not coords:
+        return None
+
+    return coords
