@@ -6,6 +6,7 @@ import random
 
 from back.app.service.pred_input_service import single_input, multi_input
 from back.app.service.airport_statics_service import get_mean_triptime
+from back.app.service.model_service import predict
 from back.app.infra.db import get_conn
 
 router = APIRouter(prefix="/api")
@@ -42,16 +43,16 @@ class Sample(BaseModel):
 def reservation_rank(request: ReservationRankRequest, conn=Depends(get_conn)):
     start_datetimes, end_datetimes = _generate_time_candidates(conn, request)
     model_input = multi_input(conn, request.depart, request.arrive, start_datetimes, end_datetimes, request.prefered_airlines)
-    # model_service.predict(model_name, model_input)
-    return Sample(message=f"{model_input}")
+    proba = predict(model_input)
+    return Sample(message=f"{proba}")
     
 
 @router.post("/check-my-reservation", response_model=Sample)
 def check_my_reservation(myreservation: Reservation, conn=Depends(get_conn)):
     r = myreservation
     model_input = single_input(conn, r.depart, r.arrive, r.depart_dt, r.arrive_dt, r.airline)
-    # model_service.predict(model_name, model_input)
-    return Sample(message=f"{model_input}")
+    proba = predict(model_input)
+    return Sample(message=f"{proba}")
     
 
 

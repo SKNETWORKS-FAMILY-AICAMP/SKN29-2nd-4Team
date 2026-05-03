@@ -8,6 +8,7 @@ from back.app.infra.weather_client import fetch_forecast
 
 
 INPUT_COLUMNS = ["Month", "DayofMonth", "DayOfWeek", "is_weekend", "Origin", "Dest", "Route", "Operating_Airline", "_start_time", "_end_time"]
+BOOLEAN_COLS = ['dest_has_precip', 'origin_has_snow', 'dest_has_snow', 'origin_has_precip', 'is_weekend']
 
 
 def single_input(conn, origin, dest, departure_dt, arrive_dt, airline):
@@ -43,6 +44,8 @@ def make_all_rows(start_airport, end_airport, start_datetimes, end_datetimes, ai
 
 def feature_pipeline(conn, df):
     processed = df.copy()
+    processed["month_sin"] = np.sin(2 * np.pi * processed["Month"] / 12)
+    processed["month_cos"] = np.cos(2 * np.pi * processed["Month"] / 12)
     processed["CRSDep_sin"] = np.sin(2 * np.pi * processed["_start_time"] / 1440)
     processed["CRSDep_cos"] = np.cos(2 * np.pi * processed["_start_time"] / 1440)
     processed["CRSArr_sin"] = np.sin(2 * np.pi * processed["_end_time"] / 1440)
@@ -60,6 +63,11 @@ def feature_pipeline(conn, df):
     airtime_mean, airtime_actual = get_airtime(conn, route, hour)
     taxiout_mean, taxiout_actual = get_taxiout(conn, origin, hour)
     taxiin_mean, taxiin_actual = get_taxiin(conn, dest, hour)
+
+    processed["origin_taxiout_mean"] = taxiout_mean
+    processed["origin_hour_taxiout_mean"] = taxiout_actual
+    processed["dest_taxiin_mean"] = taxiin_mean
+    processed["dest_hour_taxiin_mean"] = taxiin_actual
 
     # 해당 경로, 시간 별 평균 소요시간과의 차이
     expected_elapsed = taxiout_mean + airtime_mean + taxiin_mean
@@ -92,4 +100,7 @@ def feature_pipeline(conn, df):
     processed["Marketing_Airline_Network"] = processed["Operating_Airline"]
     processed["is_codeshare"] = 0
 
+    for col in BOOLEAN_COLS:
+        processed[col] = processed[col].astype(int)
+    
     return processed

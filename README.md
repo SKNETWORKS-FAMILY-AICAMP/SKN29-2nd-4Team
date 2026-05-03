@@ -11,7 +11,7 @@ uvicorn back.app.main:app
 
 ### streamlit 실행 방법
 ```
-streamlit run front/app.py
+python -m streamlit run front/app.py
 ```
 
 ### pycache, init 파일 숨기기 편의 설정
