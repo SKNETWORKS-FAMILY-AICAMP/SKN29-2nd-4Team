@@ -3,6 +3,8 @@ from pydantic import BaseModel, RootModel
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 import random
+import numpy as np
+import pandas as pd
 
 from back.app.service.pred_input_service import single_input, multi_input
 from back.app.service.airport_statics_service import get_mean_triptime
@@ -39,20 +41,47 @@ class Sample(BaseModel):
     status: str = "ok"
     message: str = "잘 받았습니다~"
 
-@router.post("/reservation-rank", response_model=Sample)
+TOP_K = 5
+
+@router.post("/reservation-rank", response_model=ReservationRankResponse)
 def reservation_rank(request: ReservationRankRequest, conn=Depends(get_conn)):
     start_datetimes, end_datetimes = _generate_time_candidates(conn, request)
     model_input = multi_input(conn, request.depart, request.arrive, start_datetimes, end_datetimes, request.prefered_airlines)
-    proba = predict(model_input)
-    return Sample(message=f"{proba}")
+    proba = predict(model_input) # list of 지연확률
+    top_indices = np.argsort(proba)[:TOP_K] # 오름차순 top_k 인덱스 번호
+
+    cnt = 1
+    items = []
+    for i in top_indices:
+        reservation = _to_reservation(model_input.iloc[i])
+        rank = cnt
+        delay = proba[i]
+        items.append(ReservationItem(rank=rank, delay=delay, reservation=reservation))
+        cnt += 1
+
+    return ReservationRankResponse(items=items)
     
 
-@router.post("/check-my-reservation", response_model=Sample)
+class Weather(BaseModel):
+    airport: str
+    weather: str
+    temperature: float
+    wind: float
+
+class CheckMyReservationResponse(BaseModel):
+    delay: str
+    proba: float
+    weather: Weather
+
+@router.post("/check-my-reservation", response_model=CheckMyReservationResponse)
 def check_my_reservation(myreservation: Reservation, conn=Depends(get_conn)):
     r = myreservation
     model_input = single_input(conn, r.depart, r.arrive, r.depart_dt, r.arrive_dt, r.airline)
-    proba = predict(model_input)
-    return Sample(message=f"{proba}")
+    proba = predict(model_input)[0] # 지연확률 1개
+
+    delay = _estimate_delay(proba)
+    weather = _to_weather(model_input)
+    return CheckMyReservationResponse(delay=delay, proba=proba, weather=weather)
     
 
 
@@ -122,3 +151,56 @@ def _generate_time_candidates(conn, request):
         end_datetimes = filtered_end
 
     return start_datetimes, end_datetimes
+
+
+def _to_weather(df) -> Weather:
+    if isinstance(df, pd.DataFrame):
+        row = df.iloc[0]
+    elif isinstance(df, pd.Series):
+        row = df
+
+    # ── 값 추출 ──
+    temp_mean = row.get("dest_temp_mean_c")
+    precip = row["dest_precipitation_mm"]
+    snow = row["dest_snowfall_cm"]
+    wind = row["dest_windspeed_max_kmh"]
+    cloud = row["dest_cloudcover_mean_pct"]
+
+    # ── 날씨 판단 ──
+    if snow > 0.5:
+        weather = "snowy"
+    elif precip > 1.0:
+        weather = "rainy"
+    elif cloud > 70:
+        weather = "cloudy"
+    else:
+        weather = "sunny"
+
+    return Weather(
+        airport=row["Dest"],
+        weather=weather,
+        temperature=temp_mean,
+        wind=wind
+    )
+
+def _to_reservation(df) -> Reservation:
+    if isinstance(df, pd.DataFrame):
+        row = df.iloc[0]
+    elif isinstance(df, pd.Series):
+        row = df
+
+    return Reservation(
+        depart=row['Origin'],
+        arrive=row['Dest'],
+        depart_dt=row['_start_time'],
+        arrive_dt=row['_end_time'],
+        airline=row['Operating_Airline']
+    )
+
+def _estimate_delay(proba):
+    if proba < 0.3:
+        return "15분 미만"
+    elif proba < 0.7:
+        return "15분 이상"
+    else:
+        return "1시간 이상"
