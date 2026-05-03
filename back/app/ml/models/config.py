@@ -13,10 +13,10 @@ PARAMS_DIR = os.path.join(DATA_DIR, "outputs", "params")
 MODELS_DIR = os.path.join(DATA_DIR, "outputs", "saved_models")
 PLOTS_DIR = os.path.join(DATA_DIR, "outputs", "plots")
 
-HPO_TRAIN_CSV = os.path.join(MINIBATCH_DIR, "minibatch_flight_delay_train_clean.csv")
-HPO_TEST_CSV  = os.path.join(MINIBATCH_DIR, "minibatch_flight_delay_test_clean.csv")
-FULL_TRAIN_CSV = os.path.join(REV02_DIR, "flight_delay_train_clean.csv")
-FULL_TEST_CSV  = os.path.join(REV02_DIR, "flight_delay_test_clean.csv")
+HPO_TRAIN_CSV  = os.path.join(MINIBATCH_DIR, "minibatch_flight_delay_train_clean.csv")
+HPO_TEST_CSV   = os.path.join(MINIBATCH_DIR, "minibatch_flight_delay_test_clean.csv")
+FULL_TRAIN_CSV = HPO_TRAIN_CSV   # 전체 데이터 파일 없음 → minibatch 사용
+FULL_TEST_CSV  = HPO_TEST_CSV
 
 TARGET_COL  = "DelayCategory"
 BINARY_MODE = True   # True: 0=정시, 1=지연(DelayCategory > 0)
