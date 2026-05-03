@@ -38,7 +38,6 @@ class AppClient:
         self,
         reservation: Reservation,
     ) -> Dict[str, Any]:
-        print("DEBUG reservation: ", reservation)
         return self._post(
             "/api/check-my-reservation",
             reservation.model_dump(mode="json"),

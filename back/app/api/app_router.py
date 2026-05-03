@@ -34,20 +34,24 @@ class ReservationRankRequest(BaseModel):
 class ReservationRankResponse(BaseModel):
     items: List[ReservationItem]
 
-@router.post("/reservation-rank", response_model=ReservationRankResponse)
+class Sample(BaseModel):
+    status: str = "ok"
+    message: str = "잘 받았습니다~"
+
+@router.post("/reservation-rank", response_model=Sample)
 def reservation_rank(request: ReservationRankRequest, conn=Depends(get_conn)):
     start_datetimes, end_datetimes = _generate_time_candidates(conn, request)
-    model_input = multi_input(request.depart, request.arrive, start_datetimes, end_datetimes, request.prefered_airlines, conn)
+    model_input = multi_input(conn, request.depart, request.arrive, start_datetimes, end_datetimes, request.prefered_airlines)
     # model_service.predict(model_name, model_input)
-    print(model_input)
+    return Sample(message=f"{model_input}")
     
 
-@router.post("/check-my-reservation", response_model=ReservationItem)
+@router.post("/check-my-reservation", response_model=Sample)
 def check_my_reservation(myreservation: Reservation, conn=Depends(get_conn)):
     r = myreservation
     model_input = single_input(conn, r.depart, r.arrive, r.depart_dt, r.arrive_dt, r.airline)
     # model_service.predict(model_name, model_input)
-    print(model_input)
+    return Sample(message=f"{model_input}")
     
 
 

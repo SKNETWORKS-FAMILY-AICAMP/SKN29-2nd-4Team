@@ -213,8 +213,8 @@ def show_route_page():
     )
 
     # 데이터 리스트
-    airport_list = ["선택해주세요"] + get_airports()
-    airline_list = ["선택해주세요"] + get_airlines()
+    airport_list = ["선택해주세요"] + [f"{a['name']}({a['code']})" for a in get_airports()]
+    airline_list = ["선택해주세요"] + [f"{a['name']}({a['code']})" for a in get_airlines()]
     dep_time_options = ["출발 시각"] + [f"{i:02d}:00 이후" for i in range(24)]
     arr_time_options = ["도착 시각"] + [f"{i:02d}:00 이후" for i in range(24)]
 
@@ -292,7 +292,7 @@ def show_route_page():
             dest = arr_airport[-4:-1]
             pref_dep_hour = pref_dep_time[:2]
             pref_arr_hour = pref_arr_time[:2]
-            airlines = [airline[-3:1] for airline in selected_airlines if airline != "선택해주세요"]
+            airlines = [airline[-3:-1] for airline in selected_airlines if airline != "선택해주세요"]
             set_user_pref_reservations(origin, dest, pref_dep_hour, pref_arr_hour, airlines)
             st.session_state.page = "routeload"
             st.rerun()

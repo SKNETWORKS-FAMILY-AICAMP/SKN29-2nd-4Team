@@ -54,7 +54,6 @@ def set_user_pref_reservations(depart, arrive, pref_dep_hour, pref_arr_hour, pre
     dep_hour = to_int_or_none(pref_dep_hour)
     arr_hour = to_int_or_none(pref_arr_hour)
     airlines = pref_airlines if pref_airlines else None
-
     request = ReservationRankRequest(
         depart=depart,
         arrive=arrive,
@@ -69,7 +68,7 @@ def get_user_pref_reservations() -> ReservationRankRequest | None:
     data = st.session_state.get("user_rank_reservation_request")
     if data is None:
         return None
-    return Reservation(**data)
+    return ReservationRankRequest(**data)
 
 def set_rank_reservations_result(result):
     pass
