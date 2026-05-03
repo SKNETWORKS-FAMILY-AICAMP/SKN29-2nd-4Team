@@ -43,9 +43,9 @@ def reservation_rank(request: ReservationRankRequest, conn=Depends(get_conn)):
     
 
 @router.post("/check-my-reservation", response_model=ReservationItem)
-def check_my_reservation(myreservation: Reservation):
+def check_my_reservation(myreservation: Reservation, conn=Depends(get_conn)):
     r = myreservation
-    model_input = single_input(r.depart, r.arrive, r.depart_dt, r.arrive_dt, r.airline)
+    model_input = single_input(conn, r.depart, r.arrive, r.depart_dt, r.arrive_dt, r.airline)
     # model_service.predict(model_name, model_input)
     print(model_input)
     

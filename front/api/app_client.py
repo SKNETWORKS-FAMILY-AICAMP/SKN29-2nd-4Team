@@ -1,7 +1,7 @@
-# front/api/app_client.py
-
 from typing import Dict, Any, List, Optional
 import requests
+
+from front.api.schema import Reservation, ReservationRankRequest
 
 
 class AppClient:
@@ -23,15 +23,11 @@ class AppClient:
 
     def get_reservation_rank(
         self,
-        depart: str,
-        arrive: str,
+        request: ReservationRankRequest
     ) -> List[Dict[str, Any]]:
         res = self._post(
             "/api/reservation-rank",
-            {
-                "depart": depart,
-                "arrive": arrive,
-            },
+            request.model_dump(mode="json"),
         )
 
         # 스펙 변경 대응: 안전하게 접근
@@ -40,11 +36,12 @@ class AppClient:
 
     def check_my_reservation(
         self,
-        reservation: Dict[str, Any],
+        reservation: Reservation,
     ) -> Dict[str, Any]:
+        print("DEBUG reservation: ", reservation)
         return self._post(
             "/api/check-my-reservation",
-            reservation,
+            reservation.model_dump(mode="json"),
         )
 
 
@@ -55,3 +52,9 @@ class AppClient:
         return self._get(
             f"/api/online-learning/{model_name}/result"
         )
+    
+    def get_airports(self):
+        return self._get("/lookup/airports")
+
+    def get_airlines(self):
+        return self._get("/lookup/airlines")

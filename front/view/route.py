@@ -2,6 +2,8 @@ import streamlit as st
 import os
 import base64
 
+from front.data import get_airlines, get_airports, set_user_pref_reservations
+
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
@@ -211,15 +213,8 @@ def show_route_page():
     )
 
     # 데이터 리스트
-    korea_airports = ["선택해주세요", "인천(ICN)", "김포(GMP)", "김해(PUS)", "제주(CJU)", "대구(TAE)", "청주(CJJ)"]
-    usa_airports = ["선택해주세요", "로스앤젤레스(LAX)", "뉴욕(JFK)", "샌프란시스코(SFO)", "시카고(ORD)", "시애틀(SEA)", "호놀룰루(HNL)"]
-    airline_list = [
-        "대한항공 (Korean Air)", "아시아나항공 (Asiana Airlines)",
-        "델타항공 (Delta Air Lines)", "유나이티드항공 (United Airlines)",
-        "아메리칸항공 (American Airlines)", "에어프레미아 (Air Premia)",
-        "하와이안항공 (Hawaiian Airlines)", "일본항공 (JAL)",
-        "전일본공수 (ANA)", "에어캐나다 (Air Canada)", "캐세이퍼시픽 (Cathay Pacific)"
-    ]
+    airport_list = ["선택해주세요"] + get_airports()
+    airline_list = ["선택해주세요"] + get_airlines()
     dep_time_options = ["출발 시각"] + [f"{i:02d}:00 이후" for i in range(24)]
     arr_time_options = ["도착 시각"] + [f"{i:02d}:00 이후" for i in range(24)]
 
@@ -235,8 +230,8 @@ def show_route_page():
 
     col_dep, col_arrow, col_arr = st.columns([5, 1, 5])
     with col_dep:
-        st.markdown("<div class='airport-chip'>🛫 &nbsp;출발지 · 한국</div>", unsafe_allow_html=True)
-        dep_airport = st.selectbox("출발지_hidden", options=korea_airports, label_visibility="collapsed", key="sel_dep")
+        st.markdown("<div class='airport-chip'>🛫 &nbsp;출발지 · 미국</div>", unsafe_allow_html=True)
+        dep_airport = st.selectbox("출발지_hidden", options=airport_list, label_visibility="collapsed", key="sel_dep")
     with col_arrow:
         st.markdown(
             """
@@ -248,7 +243,7 @@ def show_route_page():
         )
     with col_arr:
         st.markdown("<div class='airport-chip'>🛬 &nbsp;목적지 · 미국</div>", unsafe_allow_html=True)
-        arr_airport = st.selectbox("목적지_hidden", options=usa_airports, label_visibility="collapsed", key="sel_arr")
+        arr_airport = st.selectbox("목적지_hidden", options=airport_list, label_visibility="collapsed", key="sel_arr")
 
     st.markdown("<div style='height: 8px'></div>", unsafe_allow_html=True)
 
@@ -293,6 +288,12 @@ def show_route_page():
     # === 분석 버튼 ===
     if st.button("🚀 최적의 노선 분석 시작하기", use_container_width=True, type="primary"):
         if dep_airport != "선택해주세요" and arr_airport != "선택해주세요":
+            origin = dep_airport[-4:-1]
+            dest = arr_airport[-4:-1]
+            pref_dep_hour = pref_dep_time[:2]
+            pref_arr_hour = pref_arr_time[:2]
+            airlines = [airline[-3:1] for airline in selected_airlines if airline != "선택해주세요"]
+            set_user_pref_reservations(origin, dest, pref_dep_hour, pref_arr_hour, airlines)
             st.session_state.page = "routeload"
             st.rerun()
         else:

@@ -1,4 +1,3 @@
-from fastapi import Depends
 from datetime import datetime
 import pandas as pd
 import numpy as np
@@ -11,10 +10,10 @@ from back.app.infra.weather_client import fetch_forecast
 INPUT_COLUMNS = ["Month", "DayofMonth", "DayOfWeek", "is_weekend", "Origin", "Dest", "Route", "Operating_Airline", "_start_time", "_end_time"]
 
 
-def single_input(origin, dest, departure_dt, arrive_dt, airline, conn=Depends(get_conn)):
+def single_input(conn, origin, dest, departure_dt, arrive_dt, airline):
     return get_input(conn, origin, dest, [departure_dt], [arrive_dt], [airline])
 
-def multi_input(origin, dest, start_datetimes, end_datetimes, airlines, conn=Depends(get_conn)):
+def multi_input(conn, origin, dest, start_datetimes, end_datetimes, airlines):
     return get_input(conn, origin, dest, start_datetimes, end_datetimes, airlines)
 
 

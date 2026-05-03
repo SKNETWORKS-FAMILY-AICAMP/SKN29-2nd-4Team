@@ -9,7 +9,7 @@ def find_model(conn, name: str):
         if not model_json:
             return None
         
-        return json.load(model_json)
+        return json.loads(model_json)
     
 def save_model(conn, name: str, model: dict):
     try:
