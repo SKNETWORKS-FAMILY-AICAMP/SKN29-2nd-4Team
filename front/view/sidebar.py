@@ -1,38 +1,103 @@
 import streamlit as st
 import os
+import base64
 
-# 1. 현재 app.py 파일이 있는 폴더 경로를 구합니다.
-current_dir = os.path.dirname(os.path.abspath(__file__))
-# 2. 해당 폴더를 기준으로 resource/logo.png의 전체 경로를 만듭니다.
-logo_path = os.path.join(current_dir, "../resource", "logo.png")
+def get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
 
 def show_sidebar():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    logo_path = os.path.join(current_dir, "../resource", "logo2.png") 
+    
     with st.sidebar:
+        st.markdown(
+            """
+            <style>
+                /* 사이드바 배경 */
+                [data-testid="stSidebar"] {
+                    background-color: #001f3f !important;
+                }
+
+                /* 섹션 타이틀 */
+                .sidebar-section-title {
+                    color: rgba(255, 255, 255, 0.6) !important;
+                    font-size: 11px !important;
+                    font-weight: 600 !important;
+                    letter-spacing: 1px !important;
+                    margin: 20px 0 8px 5px !important;
+                }
+
+                /* --- 수정된 버튼 스타일 (흰색 테두리 + 둥근 모서리) --- */
+                [data-testid="stSidebar"] .stButton>button {
+                    background-color: transparent !important;
+                    color: white !important;
+                    
+                    /* 얇은 흰색 테두리 추가 */
+                    border: 1px solid rgba(255, 255, 255, 0.4) !important; 
+                    /* 모서리 둥글게 */
+                    border-radius: 20px !important; 
+                    
+                    padding: 8px 20px !important;
+                    transition: all 0.3s ease !important;
+                    margin-bottom: 8px !important;
+                }
+
+                /* 버튼 호버 시 스타일 */
+                [data-testid="stSidebar"] .stButton>button:hover {
+                    background-color: rgba(255, 255, 255, 0.1) !important;
+                    border-color: rgba(255, 255, 255, 1) !important; /* 호버 시 테두리 진하게 */
+                    transform: scale(1.02); /* 살짝 커지는 효과 */
+                }
+                
+                /* 버튼 안의 텍스트 정렬 */
+                [data-testid="stSidebar"] .stButton>button p {
+                    color: white !important;
+                    font-size: 14px !important;
+                }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # --- 로고 영역 ---
         if os.path.exists(logo_path):
-            # 양옆에 빈 공간을 만들어 로고를 가운데로 몹니다.
-            col1, col2, col3 = st.columns([1, 2, 1])
-            with col2:
-                st.image(logo_path, width=100)
-        else:
-            st.error("로고 파일을 찾을 수 없습니다.")
+            img_base64 = get_base64_of_bin_file(logo_path)
+            st.markdown(
+                f"""
+                <div style="text-align: center; padding: 20px 0;">
+                    <a href="/" target="_self">
+                        <img src="data:image/png;base64,{img_base64}" style="width: 80%;">
+                    </a>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
         
-        if st.button("🏠 Sky Cast 홈", use_container_width=True):
-            st.session_state.page = "main"
-            st.rerun()
-            
-        st.write("---")
-        
-        st.markdown("### 🛫 항공 예약 전")
-        if st.button("최적의 노선 확인", key="side_route", use_container_width=True):
+        st.markdown('<hr style="border-color: rgba(255,255,255,0.1);">', unsafe_allow_html=True)
+
+        # --- 메뉴 구성 ---
+        st.markdown('<p class="sidebar-section-title">FLIGHT ANALYSIS</p>', unsafe_allow_html=True)
+        if st.button("✈️  최적의 노선 확인", key="side_route", use_container_width=True):
             st.session_state.page = "route"
             st.rerun()
 
-        st.markdown("### 🛬 항공 예약 완료")
-        if st.button("내 비행기 예상 지연 시간 확인", key="side_delay", use_container_width=True):
+        if st.button("⏱️  예상 지연 시간 확인", key="side_delay", use_container_width=True):
             st.session_state.page = "delay"
             st.rerun()
 
-        st.markdown("### Online Leaning 시뮬레이션")
-        if st.button("🖥️모델 업데이트 과정 보기", key="side_model", use_container_width=True):
+        st.markdown('<p class="sidebar-section-title">SYSTEM</p>', unsafe_allow_html=True)
+        if st.button("📊  Online Learnung 시뮬레이션", key="side_model", use_container_width=True):
             st.session_state.page = "model"
             st.rerun()
+
+        # 하단 버전 표시
+        st.markdown(
+            """
+            <div style="position: fixed; bottom: 15px; left: 15px; color: rgba(255,255,255,0.2); font-size: 10px;">
+                SKY CASTER v1.0.4
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )

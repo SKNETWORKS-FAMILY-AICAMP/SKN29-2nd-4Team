@@ -10,6 +10,8 @@ from front.view.delayload import show_delayload_page
 from front.view.delayresult import show_delayresult_page
 from front.view.model import show_model_page
 
+st.set_page_config(layout="wide")
+
 # 세션 상태 초기화
 if "page" not in st.session_state:
     st.session_state.page = "main"
