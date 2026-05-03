@@ -1,0 +1,37 @@
+=================================================================
+Rev_02  Two-Stage FCNN  --  Evaluation Report
+=================================================================
+
+  AUC-ROC              : 0.6844
+  Average Precision    : 0.5176   (area under PR curve)
+
+  [ threshold = 0.52 -- optimised for F1 ]
+  F1   (binary)        : 0.5373
+  Precision            : 0.4159
+  Recall               : 0.7589
+
+  Classification Report (threshold=0.50):
+              precision    recall  f1-score   support
+
+       정시(0)       0.81      0.43      0.57    626834
+       지연(1)       0.40      0.80      0.54    303131
+
+    accuracy                           0.55    929965
+   macro avg       0.61      0.61      0.55    929965
+weighted avg       0.68      0.55      0.56    929965
+
+  Classification Report (threshold=0.52, best F1):
+              precision    recall  f1-score   support
+
+       정시(0)       0.81      0.48      0.61    626834
+       지연(1)       0.42      0.76      0.54    303131
+
+    accuracy                           0.57    929965
+   macro avg       0.61      0.62      0.57    929965
+weighted avg       0.68      0.57      0.58    929965
+
+  Confusion Matrix (rows=actual, cols=pred) @ best threshold:
+[[303688 323146]
+ [ 73079 230052]]
+
+=================================================================
