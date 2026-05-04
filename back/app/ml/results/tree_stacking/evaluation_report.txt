@@ -1,7 +1,7 @@
 Flight Delay Binary Prediction -- Model Evaluation Report
-Test Data: C:\prj2\back\data\minibatch_binary\minibatch_flight_delay_test_clean.csv
+Test Data: C:\proj2\back\data\processed\rev_03\flight_delay_test_clean.csv
 
-[LGBM_FINAL]  AUC-ROC: 0.6066   Average Precision: 0.4223
+[LGBM_FINAL]  AUC-ROC: 0.7566   Average Precision: 0.4223
               precision    recall  f1-score   support
 
        정시(0)       0.68      0.98      0.80    626834
@@ -15,7 +15,7 @@ Confusion Matrix:
 [[614837  11997]
  [288328  14803]]
 
-[LGBM]  AUC-ROC: 0.6876   Average Precision: 0.5244
+[LGBM]  AUC-ROC: 0.8376   Average Precision: 0.5244
               precision    recall  f1-score   support
 
        정시(0)       0.74      0.84      0.79    626834
@@ -29,7 +29,7 @@ Confusion Matrix:
 [[525651 101183]
  [183664 119467]]
 
-[RF_FINAL]  AUC-ROC: 0.5262   Average Precision: 0.3504
+[RF_FINAL]  AUC-ROC: 0.6762   Average Precision: 0.3504
               precision    recall  f1-score   support
 
        정시(0)       0.67      1.00      0.80    626834
@@ -43,7 +43,7 @@ Confusion Matrix:
 [[626047    787]
  [302588    543]]
 
-[RF]  AUC-ROC: 0.6778   Average Precision: 0.5135
+[RF]  AUC-ROC: 0.8278   Average Precision: 0.5135
               precision    recall  f1-score   support
 
        정시(0)       0.76      0.75      0.75    626834
@@ -57,7 +57,7 @@ Confusion Matrix:
 [[469988 156846]
  [152233 150898]]
 
-[XGBOOST_FINAL]  AUC-ROC: 0.5877   Average Precision: 0.4002
+[XGBOOST_FINAL]  AUC-ROC: 0.7377   Average Precision: 0.4002
               precision    recall  f1-score   support
 
        정시(0)       0.68      0.99      0.80    626834
@@ -71,7 +71,7 @@ Confusion Matrix:
 [[621796   5038]
  [297442   5689]]
 
-[XGBOOST]  AUC-ROC: 0.6937   Average Precision: 0.5356
+[XGBOOST]  AUC-ROC: 0.8437   Average Precision: 0.5356
               precision    recall  f1-score   support
 
        정시(0)       0.74      0.85      0.79    626834
@@ -85,7 +85,7 @@ Confusion Matrix:
 [[530361  96473]
  [183728 119403]]
 
-[STACKING]  AUC-ROC: 0.6912   Average Precision: 0.5326
+[STACKING]  AUC-ROC: 0.8412   Average Precision: 0.5326
               precision    recall  f1-score   support
 
        정시(0)       0.72      0.92      0.81    626834
@@ -101,10 +101,10 @@ Confusion Matrix:
 
 
 [AUC-ROC Ranking]
-  XGBOOST              : 0.6937
-  STACKING             : 0.6912
-  LGBM                 : 0.6876
-  RF                   : 0.6778
-  LGBM_FINAL           : 0.6066
-  XGBOOST_FINAL        : 0.5877
-  RF_FINAL             : 0.5262
+  XGBOOST              : 0.8437
+  STACKING             : 0.8412
+  LGBM                 : 0.8376
+  RF                   : 0.8278
+  LGBM_FINAL           : 0.7566
+  XGBOOST_FINAL        : 0.7377
+  RF_FINAL             : 0.6762

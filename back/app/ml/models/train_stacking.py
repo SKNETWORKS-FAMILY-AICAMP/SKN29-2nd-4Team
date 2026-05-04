@@ -1,7 +1,7 @@
 """
 Blending Stacking Pipeline
   base layer  -- XGBoost + LightGBM + RandomForest
-                 (trained on 70% of mini train)
+                 (trained on 70% of full train)
   meta layer  -- LogisticRegression
                  (trained on 30% blending set, no data leakage)
   evaluation  -- AUC-ROC on test set

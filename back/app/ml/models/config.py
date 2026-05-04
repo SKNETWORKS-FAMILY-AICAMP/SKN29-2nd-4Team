@@ -6,17 +6,16 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import TargetEncoder
 
-DATA_DIR = r"C:\prj2\back\data"
-REV02_DIR = os.path.join(DATA_DIR, "processed", "rev_02")
-MINIBATCH_DIR = os.path.join(DATA_DIR, "minibatch_binary")
+DATA_DIR   = r"C:\proj2\back\data"
+REV03_DIR  = os.path.join(DATA_DIR, "processed", "rev_03")
 PARAMS_DIR = os.path.join(DATA_DIR, "outputs", "params")
-MODELS_DIR = os.path.join(DATA_DIR, "outputs", "saved_models")
-PLOTS_DIR = os.path.join(DATA_DIR, "outputs", "plots")
+PLOTS_DIR  = os.path.join(DATA_DIR, "outputs", "plots")
+MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "saved_models")
 
-HPO_TRAIN_CSV  = os.path.join(MINIBATCH_DIR, "minibatch_flight_delay_train_clean.csv")
-HPO_TEST_CSV   = os.path.join(MINIBATCH_DIR, "minibatch_flight_delay_test_clean.csv")
-FULL_TRAIN_CSV = HPO_TRAIN_CSV   # 전체 데이터 파일 없음 → minibatch 사용
-FULL_TEST_CSV  = HPO_TEST_CSV
+HPO_TRAIN_CSV  = os.path.join(REV03_DIR, "flight_delay_train_clean.csv")
+HPO_TEST_CSV   = os.path.join(REV03_DIR, "flight_delay_test_clean.csv")
+FULL_TRAIN_CSV = os.path.join(REV03_DIR, "flight_delay_train_clean.csv")
+FULL_TEST_CSV  = os.path.join(REV03_DIR, "flight_delay_test_clean.csv")
 
 TARGET_COL  = "DelayCategory"
 BINARY_MODE = True   # True: 0=정시, 1=지연(DelayCategory > 0)

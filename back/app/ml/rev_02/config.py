@@ -1,11 +1,11 @@
 from pathlib import Path
 
-BASE_DIR   = Path(__file__).resolve().parents[3]   # c:\prj2\back
-DATA_DIR   = BASE_DIR / "data" / "minibatch_binary"
+BASE_DIR   = Path(__file__).resolve().parents[3]   # c:\proj2\back
+DATA_DIR   = BASE_DIR / "data" / "processed" / "rev_03"
 OUTPUT_DIR = BASE_DIR / "data" / "outputs" / "rev_02"
 
-TRAIN_FILE = DATA_DIR / "minibatch_flight_delay_train_clean.csv"
-TEST_FILE  = DATA_DIR / "minibatch_flight_delay_test_clean.csv"
+TRAIN_FILE = DATA_DIR / "flight_delay_train_clean.csv"
+TEST_FILE  = DATA_DIR / "flight_delay_test_clean.csv"
 
 TARGET      = "DelayCategory"
 BINARY_MODE = True   # True: 0=정시, 1=지연 (DelayCategory > 0)

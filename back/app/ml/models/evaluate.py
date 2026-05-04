@@ -141,8 +141,8 @@ def evaluate_stacking(X_test: pd.DataFrame, y_test, test_csv: str) -> tuple[floa
 
 
 def compare_all(test_csv: str = None):
-    from config import HPO_TEST_CSV
-    csv_path = test_csv or HPO_TEST_CSV
+    from config import FULL_TEST_CSV
+    csv_path = test_csv or FULL_TEST_CSV
     X_test_raw, y_test = load_data(csv_path)
 
     model_files = [
@@ -188,9 +188,4 @@ def compare_all(test_csv: str = None):
 
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--full", action="store_true", help="전체 테스트 데이터 사용")
-    args = parser.parse_args()
-    from config import FULL_TEST_CSV
-    compare_all(test_csv=FULL_TEST_CSV if args.full else None)
+    compare_all()
