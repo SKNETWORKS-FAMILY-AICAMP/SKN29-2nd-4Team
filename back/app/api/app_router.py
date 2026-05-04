@@ -198,9 +198,9 @@ def _to_reservation(df) -> Reservation:
     )
 
 def _estimate_delay(proba):
-    if proba < 0.3:
+    if proba < 0.1:
         return "15분 미만"
-    elif proba < 0.7:
+    elif proba < 0.5:
         return "15분 이상"
     else:
         return "1시간 이상"
