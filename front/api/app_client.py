@@ -30,7 +30,6 @@ class AppClient:
             request.model_dump(mode="json"),
         )
 
-        # 스펙 변경 대응: 안전하게 접근
         return res.get("items", [])
 
 

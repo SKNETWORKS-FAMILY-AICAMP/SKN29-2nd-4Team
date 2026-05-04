@@ -43,7 +43,9 @@ def get_user_reservation() -> Reservation | None:
 
 
 def set_check_my_reservation(result):
-    pass
+    st.session_state.check_my_reservation_result = result
+def get_check_my_reservation():
+    return st.session_state.check_my_reservation_result
 
 def set_user_pref_reservations(depart, arrive, pref_dep_hour, pref_arr_hour, pref_airlines):
     def to_int_or_none(v):
@@ -71,4 +73,6 @@ def get_user_pref_reservations() -> ReservationRankRequest | None:
     return ReservationRankRequest(**data)
 
 def set_rank_reservations_result(result):
-    pass
+    st.session_state.rank_reservations_result = result
+def get_rank_reservations_result():
+    return st.session_state.rank_reservations_result

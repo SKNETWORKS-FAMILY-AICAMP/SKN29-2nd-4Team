@@ -183,7 +183,7 @@ def show_delay_page():
 
     col_air1, col_air2, col_air3 = st.columns(3)
     with col_air1:
-        st.markdown("<div class='field-label'>출발 공항 (한국)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='field-label'>출발 공항 (미국)</div>", unsafe_allow_html=True)
         dep_airport_delay = st.selectbox("출발공항_delay", options=airports, label_visibility="collapsed", key="delay_dep_airport")
     with col_air2:
         st.markdown("<div class='field-label'>도착 공항 (미국)</div>", unsafe_allow_html=True)
