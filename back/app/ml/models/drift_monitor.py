@@ -10,7 +10,7 @@ from config import (
     load_model, save_model,
 )
 
-AUC_THRESHOLD = 0.80   # 이 값 미만이면 드리프트로 판정 → 재학습 트리거
+AUC_THRESHOLD = 0.80      # 이 값 미만이면 드리프트로 판정 → 재학습 트리거
 
 LABELS = ["정시(0)", "지연(1)"]
 

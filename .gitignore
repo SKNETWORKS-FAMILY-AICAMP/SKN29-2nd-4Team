@@ -1,5 +1,6 @@
 # python
 __pycache__
+*.pyc
 
 # vscode
 .vscode
@@ -9,3 +10,8 @@ __pycache__
 
 # Data files
 back/data/
+
+# ML model binaries
+*.pkl
+*.pt
+back/app/ml/models/saved_models/

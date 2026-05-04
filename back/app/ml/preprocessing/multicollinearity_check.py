@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 from statsmodels.tools.tools import add_constant
@@ -39,9 +40,11 @@ def check_vif(csv_path: str, target_col: str = None, sample_size: int = 30000, d
 
 if __name__ == "__main__":
     import sys
-    
-    # 기본 경로 설정
-    default_csv = r"C:\proj2\back\data\processed\rev_01\flight_delay_train_clean.csv"
+
+    default_csv = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), "..", "..", "..", "data",
+        "processed", "rev_01", "flight_delay_train_clean.csv"
+    ))
     default_target = "ArrDelayMinutes"
 
     if len(sys.argv) < 2:
@@ -51,6 +54,6 @@ if __name__ == "__main__":
     else:
         csv_path = sys.argv[1]
         target_col = sys.argv[2] if len(sys.argv) > 2 else None
-        
+
     result = check_vif(csv_path, target_col=target_col, drop_cols=COLLINEAR_FEATURES)
     print(result)

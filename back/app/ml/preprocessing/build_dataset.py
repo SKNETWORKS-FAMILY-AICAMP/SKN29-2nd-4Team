@@ -4,11 +4,10 @@ import glob
 import pandas as pd
 import numpy as np
 
-# eda 폴더에 있는 multicollinearity_check 모듈을 가져오기 위해 경로 추가
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'eda')))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from multicollinearity_check import COLLINEAR_FEATURES
 
-BASE_DIR = r"C:\proj2\back\data"
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "data"))
 REV01_DIR = os.path.join(BASE_DIR, "processed", "rev_01")
 REV02_DIR = os.path.join(BASE_DIR, "processed", "rev_02")
 MINIBATCH_DIR = os.path.join(BASE_DIR, "minibatch")

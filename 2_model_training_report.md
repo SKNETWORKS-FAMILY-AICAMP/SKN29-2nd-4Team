@@ -37,7 +37,7 @@
 | LightGBM | 트리 기반 부스팅 | 빠른 학습 속도, 대용량 데이터 효율적 처리 |
 | RandomForest | 트리 기반 배깅 | 과적합 저항성, 안정적 기준 모델, 특성 중요도 제공 |
 | Stacking | 메타 앙상블 | 3개 베이스 모델 조합으로 일반화 성능 향상 기대 |
-| FCNN (rev_02) | 딥러닝 | 정적/동적 특성 분리 학습, 비선형 패턴 포착 |
+| FCNN | 딥러닝 | 정적 인코딩 후 동적 특성과 결합하는 2단계 구조, 비선형 패턴 포착 |
 
 ---
 
@@ -47,7 +47,7 @@
 - 트리 모델 3종에 **Optuna HPO (70 trials)** 적용 — 최적화 목표: ROC-AUC
 - Stacking: 학습 데이터 **70/30 분할** (베이스 학습 / 블렌딩 세트)
 - FCNN: Early Stopping (patience=10) 적용
-- 클래스 불균형 대응: **클래스 가중치** √(n / (2 × count[c])) 적용
+- 클래스 불균형 대응: 트리 모델 — 클래스 가중치 √(n / (2 × count[c])) / FCNN — pos_weight = (n_neg / n_pos) × 1.5
 - 최종 모델 선정 기준: **Test ROC-AUC 최고값**
 
 ---
@@ -256,16 +256,14 @@
 
 ---
 
-## 3. 딥러닝 모델 학습 결과 (FCNN rev_02)
+## 3. 딥러닝 모델 학습 결과 (FCNN)
 
-### 3-1. 모델 구조 — 정적/동적 이중 FCNN 아키텍처
-
-정적 특성과 동적 특성을 **물리적으로 분리된 두 브랜치**로 처리한 후 합산하는 구조.  
-정적 브랜치는 스케줄·노선 정보를, 동적 브랜치는 기상·운영 지표를 독립적으로 학습한다.
+### 3-1. 모델 구조 — 2단계(Two-Stage) FCNN 아키텍처
 
 ```
-[정적 브랜치 — Static Branch]
+[1단계 — Static Branch]
   입력: 정적 수치형 12개 + 범주형 임베딩 4종
+        임베딩 합계 48-dim (8+8+16+16) + 수치형 12-dim → 총 60-dim
 
   임베딩 레이어 (범주형 4종)
     Marketing_Airline_Network → Embedding(vocab, 8)
@@ -273,25 +271,22 @@
     Origin                    → Embedding(vocab, 16)
     Dest                      → Embedding(vocab, 16)
 
-  [임베딩 합산 + 정적 수치형 12개] →
-  Linear(→ 256) → BatchNorm → ReLU → Dropout(0.3)
+  Linear(60 → 256) → BatchNorm → ReLU → Dropout(0.3)
   Linear(256 → 128) → BatchNorm → ReLU → Dropout(0.3)
-  Linear(128 → 64)  → BatchNorm → ReLU
+  Linear(128 → 64)
         │
         ▼ static_repr (64-dim)
 
-[동적 브랜치 — Dynamic Branch]
-  입력: 동적 특성 22개 (기상 16 + 운영 4 + 스케줄 편차 2), StandardScaler 적용
+[2단계 — Dynamic Stage]
+  입력: Concat(static_repr(64), 동적 특성 22개) → 86-dim
+        동적 특성: 기상 16 + 운영 지표 4 + 스케줄 편차 2, StandardScaler 적용
 
-  Linear(22 → 256) → BatchNorm → ReLU → Dropout(0.3)
+  Linear(86 → 256) → BatchNorm → ReLU → Dropout(0.3)
   Linear(256 → 128) → BatchNorm → ReLU → Dropout(0.3)
-  Linear(128 → 64)  → BatchNorm → ReLU
+  Linear(128 → 64)
         │
-        ▼ dynamic_repr (64-dim)
-
-[합산 및 출력]
-  Concatenation([static_repr, dynamic_repr]) → 128-dim
-  Linear(128 → 1) → Sigmoid → 지연 확률
+  Linear(64 → 1) → 지연 logit
+  ※ Sigmoid 없음 — BCEWithLogitsLoss 학습, 예측 시 외부에서 sigmoid 적용
 ```
 
 ### 3-2. 학습 설정
@@ -305,7 +300,7 @@
 | weight_decay | 1e-4 |
 | 배치 크기 | 2,048 |
 | 최대 Epochs | 300 |
-| Early Stopping | patience=10 (Val Recall 기준) |
+| Early Stopping | patience=10 (Val AUC-ROC 기준) |
 | LR Scheduler | ReduceLROnPlateau (mode="max", patience=3) |
 
 ### 3-3. 성능 결과 (Test 기준)
@@ -342,7 +337,7 @@
 | Stacking | 0.8412 | 0.5326 | **0.71** | **0.61** | 0.27 | 0.37 |
 | LightGBM | 0.8376 | 0.5244 | 0.69 | 0.54 | 0.39 | 0.46 |
 | RandomForest | 0.8278 | 0.5135 | 0.67 | 0.49 | 0.50 | 0.49 |
-| FCNN rev_02 | 0.6844 | 0.5176 | — | 0.42 | **0.76** | **0.54** |
+| FCNN | 0.6844 | 0.5176 | — | 0.42 | **0.76** | **0.54** |
 
 ### 4-2. 지표별 최고 성능 모델
 
@@ -352,8 +347,8 @@
 | Average Precision | XGBoost | 0.5356 |
 | Accuracy | Stacking | 0.71 |
 | 지연 Precision | Stacking | 0.61 |
-| 지연 Recall | FCNN rev_02 | 0.76 |
-| 지연 F1-Score | FCNN rev_02 | 0.54 |
+| 지연 Recall | FCNN | 0.76 |
+| 지연 F1-Score | FCNN | 0.54 |
 
 ### 4-3. 보수적 임계값 적용 변형 모델 (_FINAL)
 
@@ -361,9 +356,9 @@
 
 | 모델 | ROC-AUC | Avg Precision | 지연 Recall | 비고 |
 |------|---------|-------------|-----------|------|
-| LGBM_FINAL | 0.7566 | 0.4223 | 0.05 | 보수적 임계값 — 정시 Recall 0.98 |
-| XGBOOST_FINAL | 0.7377 | 0.4002 | 0.02 | 보수적 임계값 — 정시 Recall 0.99 |
-| RF_FINAL | 0.6762 | 0.3504 | 0.00 | 사실상 지연 미탐지 — 정시 Recall 1.00 |
+| LGBM_FINAL | 0.8217 | 0.4223 | 0.05 | 보수적 임계값 — 정시 Recall 0.98 |
+| XGBOOST_FINAL | 0.8234 | 0.4002 | 0.02 | 보수적 임계값 — 정시 Recall 0.99 |
+| RF_FINAL | 0.8159 | 0.3504 | 0.00 | 사실상 지연 미탐지 — 정시 Recall 1.00 |
 
 ---
 
@@ -385,51 +380,18 @@
 | 기본 (AUC 최우선) | **XGBoost** | ROC-AUC 0.8437 최고 |
 | 오경보 최소화 | Stacking | 지연 Precision 0.61 최고 |
 | 미탐지 최소화 | RandomForest | 지연 Recall 0.50 최고 (트리 중) |
-| Recall 극대화 | FCNN rev_02 | 지연 Recall 0.76 (ROC-AUC 저하 감수) |
+| Recall 극대화 | FCNN | 지연 Recall 0.76 (ROC-AUC 저하 감수) |
 
-### 4-5. ROC-AUC 성능 향상 주요 요인 분석
+### 4-5. ROC-AUC 성능 향상 요인
 
-최종 XGBoost ROC-AUC **0.8437**은 초기 실험 대비 유의미한 향상이다. 주요 기여 요인은 아래와 같다.
+초기 다중 분류 실험(4클래스, F1 Macro 0.27) 대비 XGBoost ROC-AUC 0.8437 달성의 기여 요인.
 
-#### 요인 1: 이진 분류(Binary) 문제로 전환
-
-초기 실험은 지연 시간 구간을 4개 클래스(정시 / 15분이하 / 15~180분 / 180분이상)로 구분하는 **다중 분류** 방식으로 진행되었다. 이 경우 클래스 간 경계가 모호하고 학습 신호가 분산되어 F1 Macro 0.27 수준에 머물렀다.
-
-이를 `DelayCategory > 0`을 기준으로 **정시(0) / 지연(1)** 이진 문제로 재정의하면서:
-- 모델이 명확한 이진 결정 경계 학습에 집중
-- ROC-AUC가 이진 확률 예측 품질을 직접 측정 — 다중 클래스 대비 지표 해석력 향상
-
-#### 요인 2: 전체 데이터(rev_03) 학습
-
-| 구분 | 데이터 규모 | 특징 |
-|------|-----------|------|
-| 초기 실험 (minibatch) | 일부 샘플 | 빠른 검증용, 데이터 다양성 제한 |
-| 최종 학습 (rev_03 전체) | 전체 비행 이력 | 항공사·노선·기상 패턴의 다양성 충분히 학습 |
-
-더 많은 데이터로 학습할수록 출발지·도착지별 기상 패턴, 항공사·노선별 지연 특성, 계절적 변동 등 복잡한 상호작용을 트리가 충분히 분기(split)할 수 있어 일반화 성능이 높아진다.
-
-#### 요인 3: Optuna HPO (70 trials) — ROC-AUC 직접 최적화
-
-| 항목 | 내용 |
-|------|------|
-| 최적화 목표 | ROC-AUC (Test set) |
-| 탐색 횟수 | 70 trials |
-| 주요 탐색 파라미터 | learning_rate (log scale), max_depth, subsample, reg_lambda 등 7개 |
-
-기본값(default) 하이퍼파라미터 대비 Optuna HPO를 통해 **과적합 방지(reg_lambda, subsample)** 와 **트리 복잡도(max_depth, min_child_weight)** 를 동시에 최적화함으로써 일반화 성능이 향상되었다.
-
-#### 요인 4: 클래스 가중치 적용 — 지연 클래스 학습 강화
-
-데이터 비율이 정시(67%) / 지연(33%)로 불균형하므로, 단순 학습 시 모델이 정시만 예측하는 방향으로 수렴할 위험이 있다. 클래스 가중치 √(n / (2 × count[c]))를 적용하여 지연 클래스의 오분류 패널티를 높임으로써 ROC-AUC가 실질적으로 개선되었다.
-
-#### 향상 요인 종합
-
-| 요인 | ROC-AUC 기여도 |
-|------|-------------|
-| 이진 분류 전환 (4클래스 → 2클래스) | 문제 정의 단순화 → 결정 경계 명확화 |
-| 전체 데이터 학습 (minibatch → rev_03) | 데이터 다양성 확보 → 일반화 향상 |
-| Optuna HPO (70 trials) | 과적합 방지 + 트리 복잡도 최적화 |
-| 클래스 가중치 | 지연 클래스 학습 신호 강화 |
+| 요인 | 변경 내용 | 효과 |
+|------|---------|------|
+| 이진 분류 전환 | 4클래스 → 2클래스 (`DelayCategory > 0`) | 결정 경계 단순화, 지표 해석 일관성 확보 |
+| 전체 데이터 학습 | minibatch 일부 → rev_03 전체 비행 이력 | 항공사·노선·기상 패턴 다양성 확보 |
+| Optuna HPO | 70 trials, ROC-AUC 직접 최적화 | 과적합 방지(reg_lambda, subsample) + 트리 복잡도 최적화 |
+| 클래스 가중치 | √(n / (2 × count[c])) 적용 | 지연 클래스(33%) 학습 신호 강화 |
 
 ---
 
@@ -437,17 +399,15 @@
 
 ### 5-1. 입력 특성 구성 — 정적/동적 분리 설계
 
-전체 입력 특성을 **시간에 따른 변화 여부**를 기준으로 두 그룹으로 분리하여 모델에 제공하였다.
+> - **정적 (Static)**: 비행 출발 전 확정 — 스케줄·노선·항공사 정보, 당일 변화 없음
+> - **동적 (Dynamic)**: 운항 당일 수집 — 기상 조건·운영 지표
 
-> - **정적 특성 (Static)**: 비행 출발 전 확정되는 스케줄·노선·항공사 정보 — 운항 당일에도 변화 없음  
-> - **동적 특성 (Dynamic)**: 운항 당일 실시간으로 변화하는 기상 조건 및 운영 지표
-
-#### 정적 특성 (총 17개)
+#### 정적 특성 (총 16개)
 
 | 유형 | 특성 수 | 특성 목록 |
 |------|--------|---------|
 | 수치형 | 12 | Month, DayofMonth, DayOfWeek, is_weekend, month_sin, month_cos, CRSDep_sin, CRSDep_cos, CRSArr_sin, CRSArr_cos, CRSElapsedTime, is_codeshare |
-| 범주형 | 5 | Marketing_Airline_Network, Operating_Airline, Origin, Dest, Route |
+| 범주형 | 4 | Marketing_Airline_Network, Operating_Airline, Origin, Dest |
 
 #### 동적 특성 (총 22개)
 
@@ -461,8 +421,8 @@
 
 | 모델 | 처리 방식 |
 |------|---------|
-| **XGBoost / LightGBM / RF / Stacking** | 정적 + 동적 특성을 **단일 입력 벡터로 결합**하여 트리에 입력 (구조적 분리 없음, 범주형은 별도 인코딩) |
-| **FCNN (rev_02 / rev_03)** | **정적 브랜치 / 동적 브랜치를 완전히 분리**하여 각각 독립 FC 네트워크로 처리 후 합산 (아래 3-1절 참조) |
+| **XGBoost / LightGBM / RF / Stacking** | 정적 + 동적 특성을 **단일 입력 벡터로 결합**하여 트리에 입력 (구조적 분리 없음, 범주형은 별도 인코딩) | 
+| **FCNN** | **2단계 구조**: 1단계에서 정적 특성을 인코딩(static_repr) → 2단계에서 static_repr과 동적 특성을 concat하여 함께 처리 → 최종 logit 출력 |
 
 **제거된 다중공선성 특성 (VIF 기반, 12개)**:  
 `expected_elapsed_mean`, `expected_elapsed_hour_mean`, `schedule_buffer_hour`, `schedule_buffer`, `route_hour_airtime_mean`, `route_airtime_mean`, `origin_temp_mean_c`, `origin_temp_min_c`, `dest_temp_mean_c`, `dest_temp_min_c`, `Distance`, `FlightDate`
@@ -476,15 +436,6 @@
 ### 5-3. 데이터 드리프트 모니터링
 
 - **감지 기준**: ROC-AUC < **0.80** → 재학습 자동 트리거
-- **모니터링 코드**: `back/app/ml/models/drift_monitor.py`
-
-```bash
-# 드리프트 감지만
-python drift_monitor.py check  xgboost_model.pkl new_data.csv
-
-# 감지 후 자동 증분 학습
-python drift_monitor.py update xgboost_model.pkl new_data.csv
-```
 
 **증분 학습 전략**:
 

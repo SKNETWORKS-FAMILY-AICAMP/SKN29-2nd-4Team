@@ -6,7 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import TargetEncoder
 
-DATA_DIR   = r"C:\proj2\back\data"
+DATA_DIR   = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "data"))
 REV03_DIR  = os.path.join(DATA_DIR, "processed", "rev_03")
 PARAMS_DIR = os.path.join(DATA_DIR, "outputs", "params")
 PLOTS_DIR  = os.path.join(DATA_DIR, "outputs", "plots")

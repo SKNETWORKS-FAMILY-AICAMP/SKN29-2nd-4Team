@@ -1,162 +1,186 @@
 """
-Blending Stacking Pipeline
+Blending Stacking Pipeline  (pre-trained base models)
   base layer  -- XGBoost + LightGBM + RandomForest
-                 (trained on 70% of full train)
+                 (loaded from back/data/outputs/saved_models/)
   meta layer  -- LogisticRegression
-                 (trained on 30% blending set, no data leakage)
-  evaluation  -- AUC-ROC on test set
+                 (trained on 30% blend-set predictions)
+  evaluation  -- ROC-AUC | Avg Precision | Accuracy | 지연 P/R/F1
 """
 import sys
 import os
 sys.path.append(os.path.dirname(__file__))
 
-import json
 import numpy as np
 import pandas as pd
 import joblib
-from xgboost import XGBClassifier
-from lightgbm import LGBMClassifier, early_stopping, log_evaluation
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.preprocessing import TargetEncoder
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score, average_precision_score, classification_report
+from sklearn.metrics import (
+    roc_auc_score, average_precision_score, accuracy_score,
+    precision_recall_fscore_support,
+)
 from config import (
-    HPO_TRAIN_CSV, HPO_TEST_CSV,
     FULL_TRAIN_CSV, FULL_TEST_CSV,
-    RANDOM_SEED, CAT_COLS, BINARY_MODE, MODELS_DIR, PARAMS_DIR,
+    RANDOM_SEED, CAT_COLS, MODELS_DIR,
     STACK_MODEL_FILE, load_data, ensure_dirs,
 )
 
-# ── 기본 하이퍼파라미터 (HPO JSON 없을 때 fallback) ────────────────────────────
-_XGB_DEFAULTS = {
-    "n_estimators": 500, "max_depth": 6, "learning_rate": 0.05,
-    "subsample": 0.8, "colsample_bytree": 0.8,
-}
-_LGBM_DEFAULTS = {
-    "n_estimators": 500, "num_leaves": 63, "learning_rate": 0.05,
-    "subsample": 0.8, "colsample_bytree": 0.8,
-}
-_RF_DEFAULTS = {
-    "n_estimators": 200, "max_depth": 12, "min_samples_split": 5,
-    "min_samples_leaf": 2, "max_features": "sqrt", "class_weight": "balanced",
-}
+
+# ── 인코딩 헬퍼 ──────────────────────────────────────────────────────────────
+
+def _ensure_route(X: pd.DataFrame) -> pd.DataFrame:
+    """Route 컬럼이 없으면 Origin-Dest 조합으로 복원."""
+    if "Route" not in X.columns and "Origin" in X.columns and "Dest" in X.columns:
+        X["Route"] = X["Origin"].astype(str) + "-" + X["Dest"].astype(str)
+    return X
 
 
-def _load_hpo(filename: str, defaults: dict) -> dict:
-    path = os.path.join(PARAMS_DIR, filename)
-    if os.path.exists(path):
-        with open(path) as f:
-            hpo = json.load(f)
-        print(f"  HPO 로드: {filename}")
-        return {**defaults, **hpo}
-    print(f"  HPO 없음 → 기본값 사용: {filename}")
-    return defaults.copy()
+def _apply_cat_vocab(X: pd.DataFrame, vocab: dict, feature_order: list) -> pd.DataFrame:
+    """XGBoost / LightGBM 용: 저장된 vocab으로 category dtype 적용.
+    미지 범주는 NaN 처리 (Pandas 4 호환). 컬럼 순서를 학습 당시와 동일하게 맞춤."""
+    X = _ensure_route(X.copy())
+    for col, cats in vocab.items():
+        if col in X.columns:
+            X[col] = pd.Categorical(X[col].astype(str), categories=cats)
+    return X[feature_order]
 
 
-def _encode_cat(X_base, X_blend, X_test):
-    """XGBoost/LightGBM용 category dtype. 어휘는 세 데이터셋 합집합."""
-    X_base, X_blend, X_test = X_base.copy(), X_blend.copy(), X_test.copy()
-    vocab = {}
-    for col in CAT_COLS:
-        if col not in X_base.columns:
-            continue
-        all_cats = sorted(
-            pd.concat([X_base[col], X_blend[col], X_test[col]]).astype(str).unique()
-        )
-        cat_type = pd.CategoricalDtype(categories=all_cats)
-        X_base[col]  = X_base[col].astype(str).astype(cat_type)
-        X_blend[col] = X_blend[col].astype(str).astype(cat_type)
-        X_test[col]  = X_test[col].astype(str).astype(cat_type)
-        vocab[col] = all_cats
-    return X_base, X_blend, X_test, vocab
+def _apply_target_enc(X: pd.DataFrame, te, feature_order: list) -> pd.DataFrame:
+    """RandomForest 용: 저장된 TargetEncoder 적용. 컬럼 순서를 학습 당시와 동일하게 맞춤."""
+    X = _ensure_route(X.copy())
+    fit_cols = list(te.feature_names_in_)
+    for col in fit_cols:
+        if col in X.columns:
+            X[col] = X[col].astype(str)
+    X[fit_cols] = te.transform(X[fit_cols])
+    return X[feature_order]
 
 
-def _encode_target(X_base, X_blend, X_test, y_base):
-    """RF용 TargetEncoder. y_base에 대해서만 fit (누수 방지)."""
-    X_base, X_blend, X_test = X_base.copy(), X_blend.copy(), X_test.copy()
-    cols = [c for c in CAT_COLS if c in X_base.columns]
-    for df_ in [X_base, X_blend, X_test]:
-        for col in cols:
-            df_[col] = df_[col].astype(str)
-    target_type = "binary" if BINARY_MODE else "continuous"
-    te = TargetEncoder(smooth="auto", target_type=target_type, random_state=RANDOM_SEED)
-    X_base[cols]  = te.fit_transform(X_base[cols], y_base)
-    X_blend[cols] = te.transform(X_blend[cols])
-    X_test[cols]  = te.transform(X_test[cols])
-    return X_base, X_blend, X_test, te
+# ── 메트릭 계산 ──────────────────────────────────────────────────────────────
+
+def _metrics(y_true, p_prob, label: str) -> dict:
+    preds = (p_prob >= 0.5).astype(int)
+    prec, rec, f1, _ = precision_recall_fscore_support(
+        y_true, preds, labels=[1], zero_division=0
+    )
+    return {
+        "모델":           label,
+        "ROC-AUC":        roc_auc_score(y_true, p_prob),
+        "Avg Precision":  average_precision_score(y_true, p_prob),
+        "Accuracy":       accuracy_score(y_true, preds),
+        "지연 Precision": prec[0],
+        "지연 Recall":    rec[0],
+        "지연 F1":        f1[0],
+    }
 
 
-def train_stacking(use_full: bool = False):
+# ── 메인 ─────────────────────────────────────────────────────────────────────
+
+def train_stacking():
     ensure_dirs()
 
-    train_csv = FULL_TRAIN_CSV if use_full else HPO_TRAIN_CSV
-    test_csv  = FULL_TEST_CSV  if use_full else HPO_TEST_CSV
-    mode_label = "전체 데이터" if use_full else "미니배치"
+    print("=" * 65)
+    print("Blending Stacking  --  pre-trained base models")
+    print("=" * 65)
 
-    print("=" * 60)
-    print(f"Blending Stacking  --  {mode_label}")
-    print("=" * 60)
-
+    # ── 데이터 로드 ───────────────────────────────────────────────────────────
     print("\n데이터 로드 ...")
-    X_train, y_train = load_data(train_csv)
-    X_test,  y_test  = load_data(test_csv)
+    X_train_full, y_train_full = load_data(FULL_TRAIN_CSV)
+    X_test,       y_test       = load_data(FULL_TEST_CSV)
 
-    # 70% base_train / 30% blend_set
+    # 70 % base_train (Base 모델 학습용)  /  30 % blend_set (Meta 모델 학습용)
     X_base, X_blend, y_base, y_blend = train_test_split(
-        X_train, y_train, test_size=0.30, stratify=y_train, random_state=RANDOM_SEED
+        X_train_full, y_train_full, test_size=0.30, stratify=y_train_full, random_state=RANDOM_SEED
     )
     print(f"  base_train={len(X_base):,}  blend_set={len(X_blend):,}  test={len(X_test):,}")
 
-    # ── 인코딩 ─────────────────────────────────────────────────────────────────
-    Xb_cat, Xbl_cat, Xt_cat, cat_vocab = _encode_cat(X_base, X_blend, X_test)
-    Xb_te,  Xbl_te,  Xt_te,  te        = _encode_target(X_base, X_blend, X_test, y_base)
+    # ── Base 모델 초기화 (파라미터 로드) ──────────────────────────────────────
+    from xgboost import XGBClassifier
+    from lightgbm import LGBMClassifier
+    from sklearn.ensemble import RandomForestClassifier
+    from config import load_params, params_exist, compute_class_weights
 
-    # ── [1/3] XGBoost ──────────────────────────────────────────────────────────
-    print("\n[1/3] XGBoost 학습 ...")
-    xgb_p = _load_hpo("xgboost_best_params.json", _XGB_DEFAULTS)
-    xgb_p.update({
-        "objective": "binary:logistic", "eval_metric": "logloss",
-        "tree_method": "hist", "enable_categorical": True,
-        "early_stopping_rounds": 50, "random_state": RANDOM_SEED, "n_jobs": -1,
-    })
-    xgb = XGBClassifier(**xgb_p)
-    xgb.fit(Xb_cat, y_base, eval_set=[(Xbl_cat, y_blend)], verbose=False)
-    p_xgb_bl = xgb.predict_proba(Xbl_cat)[:, 1]
-    p_xgb_te = xgb.predict_proba(Xt_cat)[:, 1]
-    print(f"  AUC (blend)={roc_auc_score(y_blend, p_xgb_bl):.4f}  "
-          f"AUC (test)={roc_auc_score(y_test, p_xgb_te):.4f}")
+    print("\nBase 모델 초기화 및 학습")
 
-    # ── [2/3] LightGBM ─────────────────────────────────────────────────────────
-    print("\n[2/3] LightGBM 학습 ...")
-    lgbm_p = _load_hpo("lgbm_best_params.json", _LGBM_DEFAULTS)
-    lgbm_p.update({
-        "objective": "binary", "random_state": RANDOM_SEED, "n_jobs": -1, "verbose": -1,
-    })
-    lgbm = LGBMClassifier(**lgbm_p)
-    lgbm.fit(
-        Xb_cat, y_base,
-        eval_set=[(Xbl_cat, y_blend)],
-        callbacks=[early_stopping(50, verbose=False), log_evaluation(0)],
-    )
-    p_lgbm_bl = lgbm.predict_proba(Xbl_cat)[:, 1]
-    p_lgbm_te = lgbm.predict_proba(Xt_cat)[:, 1]
-    print(f"  AUC (blend)={roc_auc_score(y_blend, p_lgbm_bl):.4f}  "
-          f"AUC (test)={roc_auc_score(y_test, p_lgbm_te):.4f}")
+    # 1. XGBoost
+    if params_exist("xgboost_best_params.json"):
+        xgb_params = load_params("xgboost_best_params.json")
+    else:
+        xgb_params = {"n_estimators": 500, "max_depth": 6, "learning_rate": 0.05}
+    xgb_params.update({"random_state": RANDOM_SEED, "n_jobs": -1, "enable_categorical": True})
+    xgb = XGBClassifier(**xgb_params)
 
-    # ── [3/3] RandomForest ─────────────────────────────────────────────────────
-    print("\n[3/3] RandomForest 학습 ...")
-    rf_p = _load_hpo("rf_best_params.json", _RF_DEFAULTS)
-    rf_p.update({"random_state": RANDOM_SEED, "n_jobs": -1})
-    rf = RandomForestClassifier(**rf_p)
+    # 2. LightGBM
+    if params_exist("lgbm_best_params.json"):
+        lgbm_params = load_params("lgbm_best_params.json")
+    else:
+        lgbm_params = {"n_estimators": 500, "num_leaves": 31, "learning_rate": 0.05}
+    lgbm_params.update({"random_state": RANDOM_SEED, "n_jobs": -1})
+    lgbm = LGBMClassifier(**lgbm_params)
+
+    # 3. RandomForest
+    if params_exist("rf_best_params.json"):
+        rf_params = load_params("rf_best_params.json")
+    else:
+        rf_params = {"n_estimators": 200, "max_depth": 12}
+    rf_params.update({"random_state": RANDOM_SEED, "n_jobs": -1})
+    rf = RandomForestClassifier(**rf_params)
+
+    # 1. XGB & LGBM (Category 인코딩)
+    from config import encode_as_category, encode_with_target
+    
+    # Route 컬럼 확보 후 피처 순서 결정
+    X_base  = _ensure_route(X_base)
+    X_blend = _ensure_route(X_blend)
+    X_test  = _ensure_route(X_test)
+    
+    xgb_feat_order = X_base.columns.tolist()
+    
+    # X_base와 X_blend, X_test를 모두 고려하여 vocab 생성
+    _, _, xgb_vocab = encode_as_category(X_base.copy(), pd.concat([X_blend, X_test]))
+    
+    Xb_cat  = _apply_cat_vocab(X_base,  xgb_vocab, xgb_feat_order)
+    Xbl_cat = _apply_cat_vocab(X_blend, xgb_vocab, xgb_feat_order)
+    Xt_cat  = _apply_cat_vocab(X_test,  xgb_vocab, xgb_feat_order)
+
+    # XGB 학습 (class weight 적용)
+    cw = compute_class_weights(y_base)
+    sw = np.array([cw[c] for c in y_base])
+    xgb.fit(Xb_cat, y_base, sample_weight=sw)
+    print("  XGBoost 학습 완료")
+
+    # LGBM 학습
+    lgbm_feat_order = xgb_feat_order
+    Xb_lgbm  = _apply_cat_vocab(X_base,  xgb_vocab, lgbm_feat_order)
+    Xbl_lgbm = _apply_cat_vocab(X_blend, xgb_vocab, lgbm_feat_order)
+    Xt_lgbm  = _apply_cat_vocab(X_test,  xgb_vocab, lgbm_feat_order)
+    lgbm.fit(Xb_lgbm, y_base)
+    print("  LightGBM 학습 완료")
+
+    # 2. RandomForest (Target 인코딩)
+    Xb_te, X_temp, te_rf = encode_with_target(X_base.copy(), pd.concat([X_blend, X_test]), y_base)
+    rf_feat_order = X_base.columns.tolist()
+    
+    # encode_with_target이 반환한 X_temp에서 분리
+    Xbl_te = X_temp.iloc[:len(X_blend)]
+    Xt_te  = X_temp.iloc[len(X_blend):]
+    
     rf.fit(Xb_te, y_base)
-    p_rf_bl = rf.predict_proba(Xbl_te)[:, 1]
-    p_rf_te = rf.predict_proba(Xt_te)[:, 1]
-    print(f"  AUC (blend)={roc_auc_score(y_blend, p_rf_bl):.4f}  "
-          f"AUC (test)={roc_auc_score(y_test, p_rf_te):.4f}")
+    print("  RandomForest 학습 완료")
 
-    # ── Meta-learner (LogisticRegression) ──────────────────────────────────────
-    print("\n[Meta] LogisticRegression 학습 ...")
+    # ── base 예측 ─────────────────────────────────────────────────────────────
+    print("\nbase 모델 예측 ...")
+    p_xgb_bl  = xgb.predict_proba(Xbl_cat)[:, 1]
+    p_xgb_te  = xgb.predict_proba(Xt_cat)[:, 1]
+
+    p_lgbm_bl = lgbm.predict_proba(Xbl_lgbm)[:, 1]
+    p_lgbm_te = lgbm.predict_proba(Xt_lgbm)[:, 1]
+
+    p_rf_bl   = rf.predict_proba(Xbl_te)[:, 1]
+    p_rf_te   = rf.predict_proba(Xt_te)[:, 1]
+
+    # ── Meta-learner (LogisticRegression) ─────────────────────────────────────
+    print("[Meta] LogisticRegression 학습 ...")
     meta_bl = np.column_stack([p_xgb_bl, p_lgbm_bl, p_rf_bl])
     meta_te = np.column_stack([p_xgb_te, p_lgbm_te, p_rf_te])
 
@@ -166,36 +190,31 @@ def train_stacking(use_full: bool = False):
     coef = dict(zip(["xgb", "lgbm", "rf"], meta.coef_[0]))
     print(f"  meta coef: xgb={coef['xgb']:.3f}  lgbm={coef['lgbm']:.3f}  rf={coef['rf']:.3f}")
 
-    # ── 최종 평가 ──────────────────────────────────────────────────────────────
     p_stack = meta.predict_proba(meta_te)[:, 1]
-    preds   = (p_stack >= 0.5).astype(int)
 
-    print("\n" + "=" * 60)
-    print("Test Set  AUC-ROC")
-    print("=" * 60)
-    print(f"  XGBoost      : {roc_auc_score(y_test, p_xgb_te):.4f}")
-    print(f"  LightGBM     : {roc_auc_score(y_test, p_lgbm_te):.4f}")
-    print(f"  RandomForest : {roc_auc_score(y_test, p_rf_te):.4f}")
-    print(f"  Stacking     : {roc_auc_score(y_test, p_stack):.4f}  <-- meta")
-    print("=" * 60)
-    print(f"\nAverage Precision (Stacking): {average_precision_score(y_test, p_stack):.4f}")
-    print("\nClassification Report (Stacking, threshold=0.50):")
-    print(classification_report(y_test, preds, target_names=["정시(0)", "지연(1)"]))
+    # ── 결과 집계 ─────────────────────────────────────────────────────────────
+    rows = [
+        _metrics(y_test, p_xgb_te,  "XGBoost"),
+        _metrics(y_test, p_lgbm_te, "LightGBM"),
+        _metrics(y_test, p_rf_te,   "RandomForest"),
+        _metrics(y_test, p_stack,   "Stacking"),
+    ]
+    result = pd.DataFrame(rows).set_index("모델")
 
-    # ── 아티팩트 저장 ──────────────────────────────────────────────────────────
+    print("\n" + "=" * 65)
+    print("Test Set 평가 결과")
+    print("=" * 65)
+    print(result.to_string(float_format=lambda x: f"{x:.4f}"))
+    print("=" * 65)
+
     artifact = {
-        "xgb": xgb, "lgbm": lgbm, "rf": rf, "meta": meta,
-        "te_rf": te, "cat_vocab": cat_vocab,
+        "meta": meta,
         "meta_coef": coef,
     }
     out_path = os.path.join(MODELS_DIR, STACK_MODEL_FILE)
     joblib.dump(artifact, out_path)
-    print(f"\n스태킹 모델 저장: {out_path}")
+    print(f"\n스태킹 모델 저장 완료: {out_path} (용량 최적화)")
 
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--full", action="store_true", help="전체 데이터 사용")
-    args = parser.parse_args()
-    train_stacking(use_full=args.full)
+    train_stacking()

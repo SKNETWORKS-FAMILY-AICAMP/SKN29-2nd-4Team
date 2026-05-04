@@ -1,4 +1,4 @@
-# 📦 산출물 3: 모델 메타데이터
+#  산출물 3: 모델 메타데이터
 
 ---
 
@@ -10,8 +10,6 @@
 |------|------|
 | 모델명 | XGBoost Classifier |
 | 버전 | v1.0.0 |
-| 문서 작성일 | 2026-05-04 |
-| 저장 경로 | `back/app/ml/models/saved_models/xgboost_model.pkl` |
 | 과제 | 항공편 지연 이진 분류 (Flight Delay Binary Prediction) |
 | 타겟 | `DelayCategory` → 이진화 (0: 정시, 1: 지연) |
 | 이진화 기준 | `DelayCategory > 0` → 지연(1) |
@@ -26,7 +24,7 @@
 | scikit-learn | 1.0+ | TargetEncoder, classification_report 사용 |
 | xgboost | 1.5+ | enable_categorical=True 지원 버전 |
 | lightgbm | 3.0+ | early_stopping / log_evaluation 콜백 지원 |
-| torch | 1.9+ | FCNN rev_02 학습 사용 |
+| torch | 1.9+ | FCNN 학습 사용 |
 | pandas | 1.1+ | CategoricalDtype 지원 버전 |
 | numpy | 1.19+ | 수치 연산 |
 | optuna | 2.0+ | create_study / suggest_* API 사용 |
@@ -90,30 +88,26 @@
 
 #### HPO 탐색 파라미터 (Optuna, 70 trials, 최적화 목표: ROC-AUC)
 
-| 파라미터 | 탐색 범위 | 기본값 |
-|---------|---------|------|
-| n_estimators | 100 ~ 1,000 | 500 |
-| max_depth | 3 ~ 10 | 6 |
-| learning_rate | 0.01 ~ 0.30 (log scale) | 0.05 |
-| subsample | 0.6 ~ 1.0 | 0.8 |
-| colsample_bytree | 0.6 ~ 1.0 | 0.8 |
-| min_child_weight | 1 ~ 10 | 1 |
-| reg_lambda | 0.001 ~ 10.0 (log scale) | 1.0 |
-
-> 최적 파라미터 저장 경로: `data/outputs/params/xgboost_best_params.json`
+| 파라미터 | 탐색 범위 |
+|---------|---------|
+| n_estimators | 100 ~ 1,000 |
+| max_depth | 3 ~ 10 |
+| learning_rate | 0.01 ~ 0.30 (log scale) |
+| subsample | 0.6 ~ 1.0 |
+| colsample_bytree | 0.6 ~ 1.0 |
+| min_child_weight | 1 ~ 10 |
+| reg_lambda | 0.001 ~ 10.0 (log scale) |
 
 ---
 
 ### 입력 데이터 스펙
 
-입력 특성은 **시간에 따른 변화 여부**를 기준으로 정적/동적으로 구분하여 설계되었다.
-
-#### 정적 특성 (Static, 17개) — 비행 출발 전 확정, 당일 변화 없음
+#### 정적 특성 (Static, 16개) — 비행 출발 전 확정, 당일 변화 없음
 
 | 유형 | 특성 수 | 특성명 |
 |------|--------|--------|
 | 수치형 | 12 | Month, DayofMonth, DayOfWeek, is_weekend, month_sin, month_cos, CRSDep_sin, CRSDep_cos, CRSArr_sin, CRSArr_cos, CRSElapsedTime, is_codeshare |
-| 범주형 | 5 | Marketing_Airline_Network, Operating_Airline, Origin, Dest, Route |
+| 범주형 | 4 | Marketing_Airline_Network, Operating_Airline, Origin, Dest |
 
 #### 동적 특성 (Dynamic, 22개) — 운항 당일 실시간 변화
 
@@ -127,7 +121,7 @@
 
 | 특성 유형 | 전처리 방법 |
 |---------|-----------|
-| 범주형 5종 | pandas CategoricalDtype (어휘: train+test 합집합 정렬) |
+| 범주형 4종 | pandas CategoricalDtype (어휘: train+test 합집합 정렬) |
 | 수치형 34종 | 없음 — XGBoost는 스케일 무관 |
 | 클래스 불균형 | 클래스 가중치 √(n / (2 × count[c])) 적용 |
 
@@ -152,51 +146,6 @@ Distance, FlightDate
 | `predict(X) == 1` | 지연 도착 예측 |
 | `predict_proba(X)[:, 1]` | 지연 확률 (0.0 ~ 1.0) |
 
----
-
-### 모델 로드 및 예측 예시
-
-```python
-import joblib
-import pandas as pd
-
-# 모델 로드
-model = joblib.load("back/app/ml/models/saved_models/xgboost_model.pkl")
-
-# 범주형 변수 dtype 변환 (학습 시와 동일한 어휘 적용)
-cat_cols = ["Marketing_Airline_Network", "Operating_Airline", "Origin", "Dest", "Route"]
-for col in cat_cols:
-    df[col] = df[col].astype("category")
-
-# 예측
-prediction = model.predict(df)
-probability = model.predict_proba(df)[:, 1]
-
-print(f"지연 예측: {'지연' if prediction[0] == 1 else '정시'}")
-print(f"지연 확률: {probability[0]:.2%}")
-```
-
----
-
-### 재현 방법
-
-```
-1. 학습 데이터 준비
-   경로: data/processed/rev_03/flight_delay_train_clean.csv
-
-2. 파이프라인 실행
-   back/app/ml/models/run_preliminary.py
-
-   실행 순서:
-   Step 1~3  : HPO (XGBoost → LightGBM → RandomForest, 각 70 trials)
-   Step 4~6  : 개별 모델 학습 (전체 데이터 사용)
-   Step 7    : Stacking 학습 (70/30 분할)
-   Step 8    : 평가 (evaluate.py)
-
-3. 모델 저장
-   data/outputs/saved_models/xgboost_model.pkl
-   data/outputs/params/xgboost_best_params.json
-```
 
 ---
 
@@ -206,33 +155,28 @@ print(f"지연 확률: {probability[0]:.2%}")
 |------|------|
 | 드리프트 감지 기준 | ROC-AUC < **0.80** |
 | 재학습 방식 | 증분 학습 (`xgb_model=model.get_booster()`) |
-| 모니터링 코드 | `back/app/ml/models/drift_monitor.py` |
 
 ---
 
-### 알려진 한계점
+### 모델 한계점
 
 | 항목 | 내용 |
 |------|------|
-| 학습 데이터 규모 | 전체 데이터 사용 (`processed/rev_03`) |
 | 지연 Recall | 0.39 — 실제 지연의 약 61%를 미탐지 |
 | 임계값 고정 | 기본 0.5 적용 — 시나리오별 최적 임계값 미탐색 |
-| 재학습 주기 | 데이터 드리프트 감지 시 (별도 배치 스케줄 미설정) |
 
 > Recall 향상이 필요한 경우: RandomForest (지연 Recall 0.50) 또는 FCNN rev_03 (Focal Loss 적용, 학습 예정) 고려
 
 ---
 
-## 모델 2: FCNN rev_02 (정적/동적 이중 브랜치 딥러닝 모델)
+## 모델 2: FCNN (정적/동적 이중 브랜치 딥러닝 모델)
 
 ### 기본 정보
 
 | 항목 | 내용 |
 |------|------|
-| 모델명 | FCNN rev_02 (Dual-Branch Fully Connected Neural Network) |
+| 모델명 | FCNN (Two-Stage Fully Connected Neural Network) |
 | 버전 | v1.0.0 |
-| 문서 작성일 | 2026-05-04 |
-| 저장 경로 | `back/data/outputs/rev_02/best_model.pt` |
 | 과제 | 항공편 지연 이진 분류 |
 | 타겟 | `DelayCategory` → 이진화 (0: 정시, 1: 지연) |
 
@@ -262,25 +206,23 @@ print(f"지연 확률: {probability[0]:.2%}")
 
 ---
 
-### 아키텍처 — 정적/동적 이중 브랜치
+### 아키텍처 — 2단계(Two-Stage) 구조
 
-입력 특성을 **정적 특성(Static)** 과 **동적 특성(Dynamic)** 으로 분리하여 각각 독립 브랜치에서 처리 후 합산.
+1단계에서 정적 특성을 인코딩하고, 2단계에서 그 출력(static_repr)과 동적 특성을 concat하여 함께 처리한다.
 
 ```
-[정적 브랜치]
-  입력: 정적 수치형 12개 + 범주형 임베딩 4종
+[1단계 — Static Branch]
+  입력: 정적 수치형 12개 + 범주형 임베딩 4종 (임베딩 합계 48-dim → 총 60-dim)
   Embedding: Marketing_Airline_Network(vocab→8), Operating_Airline(vocab→8),
              Origin(vocab→16), Dest(vocab→16)
-  FC [256 → 128 → 64], BatchNorm + ReLU + Dropout(0.3)
+  FC [60→256→128→64], 마지막 레이어 제외 BatchNorm + ReLU + Dropout(0.3)
   → static_repr (64-dim)
 
-[동적 브랜치]
-  입력: 동적 특성 22개 (기상 16 + 운영 4 + 스케줄 편차 2)
-  FC [256 → 128 → 64], BatchNorm + ReLU + Dropout(0.3)
-  → dynamic_repr (64-dim)
-
-Concatenation([static_repr, dynamic_repr]) → 128-dim
-Linear(128 → 1) → Sigmoid → 지연 확률
+[2단계 — Dynamic Stage]
+  입력: Concat(static_repr(64), 동적 특성 22개) → 86-dim
+  FC [86→256→128→64], 마지막 레이어 제외 BatchNorm + ReLU + Dropout(0.3)
+  → 64-dim
+  Linear(64 → 1) → 지연 logit  (예측 시 외부에서 sigmoid 적용)
 ```
 
 ---
@@ -311,7 +253,6 @@ Linear(128 → 1) → Sigmoid → 지연 확률
 | 수치형 | 12 | Month, DayofMonth, DayOfWeek, is_weekend, month_sin, month_cos, CRSDep_sin, CRSDep_cos, CRSArr_sin, CRSArr_cos, CRSElapsedTime, is_codeshare |
 | 범주형 | 4 | Marketing_Airline_Network, Operating_Airline, Origin, Dest |
 
-> ※ FCNN은 Route 미사용 (트리 모델의 CAT_COLS 5종과 다름)
 
 #### 동적 특성 (22개) — 운항 당일 실시간 변화
 
@@ -329,82 +270,26 @@ Linear(128 → 1) → Sigmoid → 지연 확률
 | 수치형 34종 (정적 12 + 동적 22) | StandardScaler (train에만 fit, test에 transform) |
 | 클래스 불균형 | pos_weight = (n_neg / n_pos) × 1.5 (BCEWithLogitsLoss) |
 
----
-
-### 저장 아티팩트
-
-| 파일 | 경로 | 내용 |
-|------|------|------|
-| best_model.pt | `back/data/outputs/rev_02/best_model.pt` | 최적 epoch 모델 가중치 (PyTorch) |
-| scaler.pkl | `back/data/outputs/rev_02/scaler.pkl` | StandardScaler (수치형 34종) |
-| label_encoders.pkl | `back/data/outputs/rev_02/label_encoders.pkl` | LabelEncoder dict (범주형 4종) |
 
 ---
 
-### 모델 로드 및 예측 예시
-
-```python
-import torch
-import pickle
-import numpy as np
-import pandas as pd
-from sklearn.preprocessing import StandardScaler
-
-# 아티팩트 로드
-model = torch.load("back/data/outputs/rev_02/best_model.pt", map_location="cpu")
-model.eval()
-
-with open("back/data/outputs/rev_02/scaler.pkl", "rb") as f:
-    scaler = pickle.load(f)
-with open("back/data/outputs/rev_02/label_encoders.pkl", "rb") as f:
-    label_encoders = pickle.load(f)
-
-# 범주형 인코딩
-for col, le in label_encoders.items():
-    df[col] = le.transform(df[col].astype(str))
-
-# 수치형 스케일링 (정적 + 동적 합산 후 스케일)
-all_num = STATIC_NUM_FEATURES + DYNAMIC_FEATURES
-num_scaled = scaler.transform(df[all_num])
-static_num = torch.tensor(num_scaled[:, :12], dtype=torch.float32)
-dynamic    = torch.tensor(num_scaled[:, 12:], dtype=torch.float32)
-static_cat = torch.tensor(df[STATIC_CAT_FEATURES].values, dtype=torch.long)
-
-# 예측
-with torch.no_grad():
-    logits = model(static_num, static_cat, dynamic)
-    prob = torch.sigmoid(logits).squeeze().numpy()
-
-print(f"지연 확률: {prob[0]:.2%}")
-print(f"지연 예측: {'지연' if prob[0] >= 0.52 else '정시'}")  # 최적 임계값 0.52
-```
-
----
-
-### 재현 방법
-
-```
-1. 학습 데이터 준비
-   경로: data/processed/rev_03/flight_delay_train_clean.csv
-
-2. 학습 실행
-   back/app/ml/rev_02/run.py
-
-3. 아티팩트 저장
-   back/data/outputs/rev_02/best_model.pt
-   back/data/outputs/rev_02/scaler.pkl
-   back/data/outputs/rev_02/label_encoders.pkl
-```
-
----
-
-### 알려진 한계점
+### 모델 한계점
 
 | 항목 | 내용 |
 |------|------|
 | ROC-AUC | 0.6844 — 트리 모델(XGBoost 0.8437) 대비 낮음 |
 | 지연 Precision | 0.42 — 오경보(FP) 다수 발생 |
 | 임계값 | 기본 0.5 대신 0.52 적용 시 F1 최적화 |
-| Route 특성 | 미사용 — 트리 모델과 입력 특성 불일치 |
 
 > FCNN rev_03 (Focal Loss + CosineAnnealingWarmRestarts + 확장 임베딩) 학습 시 성능 개선 기대
+
+
+---
+
+### 프로젝트 한계점 및 개선안
+
+| 항목 | 내용 |
+|------|------|
+| 모델 신뢰성 | 모델 학습 시에는 실제 날씨 데이터를 사용하였으나 예측 시 예보 데이터 활용 |
+| 연동성 | 실제 공항 데이터 API와 연동한게 아닌, 임의의 데이터로 실험 진행 |
+| 데이터 부족 | Data Drift 실험에 사용할 분포가 다를 정도의 충분한 미래 데이터 미확보 | 

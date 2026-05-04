@@ -82,43 +82,43 @@ def evaluate_single(artifact, X_test: pd.DataFrame, y_test, model_name: str) -> 
 
 
 def evaluate_stacking(X_test: pd.DataFrame, y_test, test_csv: str) -> tuple[float, str] | None:
-    """stack_model.pkl이 있으면 스태킹 모델도 평가합니다."""
+    """최적화된 stack_model.pkl을 사용하여 개별 베이스 모델들과 함께 평가합니다."""
     stack_path = os.path.join(MODELS_DIR, STACK_MODEL_FILE)
     if not os.path.exists(stack_path):
         return None
 
     import joblib
-    artifact = joblib.load(stack_path)
-    xgb, lgbm, rf, meta = artifact["xgb"], artifact["lgbm"], artifact["rf"], artifact["meta"]
+    print("\n[STACKING] 베이스 모델 및 메타 모델 로드 중...")
+    
+    # 1. 메타 모델 로드
+    stack_artifact = joblib.load(stack_path)
+    meta = stack_artifact["meta"]
 
-    # XGBoost / LightGBM: category dtype 인코딩은 모델 내부에서 처리됨
-    # RF: TargetEncoder는 stacking 학습 시와 다를 수 있으므로 저장된 te 사용
-    te = artifact.get("te_rf")
+    # 2. 개별 베이스 모델 로드 (저장된 경로에서 개별적으로 불러옴)
+    try:
+        xgb_bundle  = load_model("xgboost_model.pkl")
+        lgbm_bundle = load_model("lgbm_model.pkl")
+        rf_bundle   = load_model("rf_model.pkl")
+    except FileNotFoundError as e:
+        print(f"  [Error] 베이스 모델 파일을 찾을 수 없습니다: {e}")
+        return None
 
-    def _cat_encode(X):
-        X = X.copy()
-        for col in CAT_COLS:
-            if col in X.columns:
-                cats = artifact["cat_vocab"].get(col, sorted(X[col].astype(str).unique()))
-                X[col] = X[col].astype(str).astype(pd.CategoricalDtype(categories=cats))
-        return X
+    xgb,  xgb_enc  = xgb_bundle["model"],  xgb_bundle["encoders"]
+    lgbm, lgbm_enc = lgbm_bundle["model"], lgbm_bundle["encoders"]
+    rf,   rf_enc   = rf_bundle["model"],   rf_bundle["encoders"]
 
-    def _te_encode(X):
-        X = X.copy()
-        if te is not None:
-            cols = [c for c in CAT_COLS if c in X.columns]
-            for col in cols:
-                X[col] = X[col].astype(str)
-            X[cols] = te.transform(X[cols])
-        return X
+    # 3. 데이터 인코딩 및 예측
+    # Route 컬럼 확인
+    from train_stacking import _ensure_route, _apply_cat_vocab, _apply_target_enc
+    X_test = _ensure_route(X_test.copy())
 
-    X_cat = _cat_encode(X_test)
-    X_te  = _te_encode(X_test)
+    # 각 모델별 인코딩 적용 및 예측
+    # XGB/LGBM은 보통 같은 vocab(CAT_COLS)을 공유하지만 개별 encoder 사용이 안전
+    p_xgb  = xgb.predict_proba(_apply_cat_vocab(X_test, xgb_enc, xgb.get_booster().feature_names))[:, 1]
+    p_lgbm = lgbm.predict_proba(_apply_cat_vocab(X_test, lgbm_enc, lgbm.feature_name_))[:, 1]
+    p_rf   = rf.predict_proba(_apply_target_enc(X_test, rf_enc, rf.feature_names_in_))[:, 1]
 
-    p_xgb  = xgb.predict_proba(X_cat)[:, 1]
-    p_lgbm = lgbm.predict_proba(X_cat)[:, 1]
-    p_rf   = rf.predict_proba(X_te)[:, 1]
-
+    # 4. 최종 메타 예측
     meta_feat  = np.column_stack([p_xgb, p_lgbm, p_rf])
     p_stack    = meta.predict_proba(meta_feat)[:, 1]
     preds      = (p_stack >= 0.5).astype(int)
@@ -128,7 +128,7 @@ def evaluate_stacking(X_test: pd.DataFrame, y_test, test_csv: str) -> tuple[floa
     report = classification_report(y_test, preds, target_names=["정시(0)", "지연(1)"])
     cm     = confusion_matrix(y_test, preds)
 
-    print(f"\n[STACKING]  AUC-ROC: {auc:.4f}  AP: {ap:.4f}")
+    print(f"[STACKING]  AUC-ROC: {auc:.4f}  AP: {ap:.4f}")
     print(report)
     save_confusion_matrix_plot(cm, "stacking")
 

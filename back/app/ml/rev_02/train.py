@@ -7,10 +7,11 @@ os.environ.setdefault("MKL_NUM_THREADS", "4")
 import pickle
 import sys
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.metrics import roc_auc_score, f1_score
+from sklearn.metrics import roc_auc_score, f1_score, recall_score
 
 from config import (
     OUTPUT_DIR, STATIC_NUM_FEATURES, DYNAMIC_FEATURES,
@@ -107,19 +108,31 @@ def run_training():
     print(f"Training up to {MAX_EPOCHS} epochs (early-stop patience={PATIENCE}) ...")
     print("-" * 75)
 
+    history = []
+
     for epoch in range(1, MAX_EPOCHS + 1):
         tr_loss = _train_epoch(model, train_loader, optimizer, criterion, device)
         va_loss, probs, labels = _eval_epoch(model, test_loader, criterion, device)
 
-        auc   = roc_auc_score(labels, probs)
-        preds = (probs >= 0.5).astype(int)
-        f1    = f1_score(labels, preds, average="binary", zero_division=0)
+        auc    = roc_auc_score(labels, probs)
+        preds  = (probs >= 0.5).astype(int)
+        f1     = f1_score(labels, preds, average="binary", zero_division=0)
+        recall = recall_score(labels, preds, zero_division=0)
         lr_now = optimizer.param_groups[0]["lr"]
+
+        history.append({
+            "Epoch": epoch,
+            "Train Loss": round(tr_loss, 4),
+            "Val Loss": round(va_loss, 4),
+            "Val Recall": round(recall, 4),
+            "Val F1": round(f1, 4),
+            "Val AUC": round(auc, 4)
+        })
 
         print(
             f"Epoch {epoch:3d} | "
             f"train_loss={tr_loss:.4f}  val_loss={va_loss:.4f}  "
-            f"AUC={auc:.4f}  F1={f1:.4f}  lr={lr_now:.2e}"
+            f"AUC={auc:.4f}  Recall={recall:.4f}  F1={f1:.4f}  lr={lr_now:.2e}"
         )
 
         scheduler.step(auc)
@@ -145,10 +158,31 @@ def run_training():
                 print(f"\nEarly stopping at epoch {epoch}  (best AUC={best_auc:.4f})")
                 break
 
+    # 학습 히스토리 CSV로 저장
+    history_df = pd.DataFrame(history)
+    history_path = os.path.join(OUTPUT_DIR, "training_history.csv")
+    history_df.to_csv(history_path, index=False)
+    print(f"  -> Saved training history to {history_path}")
+
     with open(SCALER_PATH,  "wb") as f:
         pickle.dump(scaler,   f)
     with open(ENCODER_PATH, "wb") as f:
         pickle.dump(encoders, f)
+
+    # ---------------------------------------------------------
+    # 남에게 model.py와 함께 전달할 수 있는 상태 딕셔너리(state_dict) 묶음 파일 생성
+    # ---------------------------------------------------------
+    checkpoint = torch.load(MODEL_PATH, map_location=device)
+
+    fcnn_package = {
+        "model": checkpoint,
+        "scaler": scaler,
+        "label_encoders": encoders
+    }
+    bundled_path = os.path.join(OUTPUT_DIR, "FCNN.pkl")
+    with open(bundled_path, "wb") as f:
+        pickle.dump(fcnn_package, f)
+    print(f"  -> Saved state_dict bundled model to {bundled_path} (model.py와 함께 전달하세요!)")
 
     print(f"\nBest AUC-ROC : {best_auc:.4f}")
     print(f"Artifacts saved to {OUTPUT_DIR}")
