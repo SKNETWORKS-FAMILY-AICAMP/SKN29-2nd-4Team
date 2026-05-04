@@ -4,7 +4,69 @@ import numpy as np
 import altair as alt
 import os
 import base64
+from datetime import datetime
+import plotly.graph_objects as go
+import textwrap
 
+import pandas as pd
+import numpy as np
+
+# ─────────────────────────────────────────────
+# MOCK DATA
+# ─────────────────────────────────────────────
+def generate_mock_learning_curve():
+    np.random.seed(42)
+
+    dates = pd.date_range("2024-07-01", periods=31, freq="D")
+
+    auc = 0.72 + np.random.normal(0, 0.01, 31)
+
+    # drift 시뮬레이션
+    auc[10:15] -= 0.05
+    auc[20:25] -= 0.08
+
+    actions = []
+    reasons = []
+
+    for v in auc:
+        if v > 0.71:
+            actions.append("skip")
+            reasons.append(
+                f"AUC={v:.3f} → Model is stable. No update required."
+            )
+        elif v > 0.66:
+            actions.append("warm-update")
+            reasons.append(
+                f"AUC={v:.3f} → Performance drop detected. Warm update recommended to adjust weights."
+            )
+        else:
+            actions.append("full-retrain")
+            reasons.append(
+                f"AUC={v:.3f} → Significant degradation detected. Full retraining is required."
+            )
+
+    return pd.DataFrame({
+        "date": dates,
+        "auc": auc,
+        "precision": auc - 0.02 + np.random.normal(0, 0.005, 31),
+        "recall": auc - 0.03 + np.random.normal(0, 0.005, 31),
+        "action": actions,
+        "reason": reasons
+    })
+
+
+# ─────────────────────────────────────────────
+# SESSION INIT
+# ─────────────────────────────────────────────
+start_date = pd.Timestamp("2024-07-01")
+
+if "date_range" not in st.session_state:
+    st.session_state.date_range = pd.Timestamp("2024-07-01").to_pydatetime()
+
+
+
+# def update_days():
+#     st.session_state.sim_days = st.session_state.temp_slider
 
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
@@ -12,13 +74,9 @@ def get_base64_of_bin_file(bin_file):
     return base64.b64encode(data).decode()
 
 
-def update_days():
-    st.session_state.sim_days = st.session_state.temp_slider
-
-
 def show_model_page():
     if 'sim_days' not in st.session_state:
-        st.session_state.sim_days = 10
+        st.session_state.sim_days = datetime(2024, 7, 1)
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     img_path = os.path.join(current_dir, "../resource", "airport.jpg")
@@ -199,129 +257,119 @@ def show_model_page():
         """,
         unsafe_allow_html=True,
     )
+    # 히어로 배너 끝
 
-    # ── 데이터 계산 ─────────────────────────────────────────────────────────
-    accumulated_days = st.session_state.sim_days
-    improvement = (accumulated_days // 10) * 3
-    base_error = [45, 38, 52, 41]
-    current_error = [
-        max(10, x - improvement + int(np.random.randint(-1, 2))) for x in base_error
-    ]
-    after_error = [round(x * 0.45, 1) for x in current_error]
+    # 메인 시각화 line chart 부분
+    df = generate_mock_learning_curve()
+    df["date"] = pd.to_datetime(df["date"])
 
-    base_avg_error = round(np.mean(current_error), 1)
-    updated_avg_error = round(np.mean(after_error), 1)
-    improvement_pct = round((1 - updated_avg_error / base_avg_error) * 100, 1)
+    st.markdown("### 📈 Online Learning Performance")
 
-    labels = ['기온 오차', '습도 오차', '풍속 오차', '지연 오차']
+    # ── 날짜 범위 (고정: 7/1 ~ 7/31) ──
+    min_date = pd.Timestamp("2024-07-01")
+    max_date = pd.Timestamp("2024-07-31")
 
-    # ── 섹션 1: 오차율 비교 ─────────────────────────────────────────────────
-    st.markdown(
-        "<div class='section-heading'>📊 &nbsp;오차율 비교 분석</div>",
-        unsafe_allow_html=True,
-    )
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown(
-            f"<div style='font-size:13px;font-weight:700;color:#001f3f;margin-bottom:4px;'>📊 업데이트 전 오차율</div>"
-            f"<div style='font-size:11px;color:#9CA3AF;margin-bottom:8px;'>{accumulated_days}일 누적 데이터 기반 현재 오차</div>",
-            unsafe_allow_html=True,
-        )
-        error_df = pd.DataFrame({'지표': labels, '오차율(%)': current_error})
-        chart1 = (
-            alt.Chart(error_df)
-            .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color="#ef4444")
-            .encode(
-                x=alt.X('지표:N', sort=None, axis=alt.Axis(labelAngle=0, labelFontSize=11, title=None)),
-                y=alt.Y('오차율(%):Q', axis=alt.Axis(title='오차율 (%)', labelFontSize=11), scale=alt.Scale(domain=[0, 60])),
-                tooltip=['지표', '오차율(%)'],
-            )
-            .properties(height=240)
-            .configure_view(strokeWidth=0)
-            .configure_axis(grid=False)
-        )
-        st.altair_chart(chart1, use_container_width=True)
-
-    with col2:
-        st.markdown(
-            "<div style='font-size:13px;font-weight:700;color:#001f3f;margin-bottom:4px;'>📈 Online Learning 적용 후</div>"
-            "<div style='font-size:11px;color:#9CA3AF;margin-bottom:8px;'>실시간 모델 업데이트 결과</div>",
-            unsafe_allow_html=True,
-        )
-        updated_df = pd.DataFrame({'지표': labels, '오차율(%)': after_error})
-        chart2 = (
-            alt.Chart(updated_df)
-            .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4, color="#0057b8")
-            .encode(
-                x=alt.X('지표:N', sort=None, axis=alt.Axis(labelAngle=0, labelFontSize=11, title=None)),
-                y=alt.Y('오차율(%):Q', axis=alt.Axis(title='오차율 (%)', labelFontSize=11), scale=alt.Scale(domain=[0, 60])),
-                tooltip=['지표', '오차율(%)'],
-            )
-            .properties(height=240)
-            .configure_view(strokeWidth=0)
-            .configure_axis(grid=False)
-        )
-        st.altair_chart(chart2, use_container_width=True)
-
-    # ── 섹션 2: 분석 결과 ──────────────────────────────────────────────────
-    st.markdown(
-        f"""
-        <div class="result-banner">
-            <div class="result-banner-icon">💡</div>
-            <div class="result-banner-text">
-                학습 데이터가 <span class="result-highlight">{accumulated_days}일</span>로 확장됨에 따라
-                평균 오차율이 <span class="result-highlight">{base_avg_error}%</span>
-                <span class="result-arrow">→</span>
-                <span class="result-highlight">{updated_avg_error}%</span>로 개선되었습니다.&nbsp;
-                Online Learning 적용 시 <strong>약 {improvement_pct}% 오차 감소</strong> 효과가 예측됩니다.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # ── 섹션 3: 학습 데이터 기간 확장 ─────────────────────────────────────
-    st.markdown(
-        "<div class='section-heading'>📅 &nbsp;학습 데이터 기간 확장</div>",
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        "<div style='font-size:13px;font-weight:700;color:#374151;margin-bottom:2px;'>누적 학습 기간 조절</div>"
-        "<div style='font-size:11px;color:#9CA3AF;margin-bottom:4px;'>슬라이더를 움직여 학습 데이터의 범위를 10일 단위로 조절하세요.</div>",
-        unsafe_allow_html=True,
-    )
-    st.slider(
+    # slider (🔥 key만 사용)
+    date_range = st.slider(
         "학습 기간",
-        min_value=10,
-        max_value=100,
-        value=st.session_state.sim_days,
-        step=10,
-        key="temp_slider",
-        on_change=update_days,
-        label_visibility="collapsed",
+        min_value=min_date.to_pydatetime(),
+        max_value=max_date.to_pydatetime(),
+        step=pd.Timedelta(days=1),
+        key="date_range"
     )
 
-    # 날짜 범위 계산
-    start_date = "2026-05-01"
-    if accumulated_days <= 31:
-        end_date = f"2026-05-{accumulated_days:02d}"
+    # 바로 사용 (변환만)
+    start_date = pd.Timestamp("2024-07-01")
+    end_date = pd.to_datetime(date_range)
+
+    mask = (df["date"] >= start_date) & (df["date"] <= end_date)
+    df_view = df[mask]
+
+    # ── plot ──
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=df_view["date"],
+        y=df_view["auc"],
+        mode="lines+markers",
+        name="AUC"
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df_view["date"],
+        y=df_view["precision"],
+        mode="lines",
+        name="Precision"
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df_view["date"],
+        y=df_view["recall"],
+        mode="lines",
+        name="Recall"
+    ))
+
+    # ── event markers ──
+    color_map = {
+        "skip": "gray",
+        "warm-update": "orange",
+        "full-retrain": "red"
+    }
+
+    for _, row in df_view.iterrows():
+        fig.add_trace(go.Scatter(
+            x=[row["date"]],
+            y=[row["auc"]],
+            mode="markers",
+            marker=dict(size=10, color=color_map[row["action"]]),
+            name=row["action"],
+            showlegend=False,
+            hovertext=row["reason"]
+        ))
+
+    # ── legend (고정) ──
+    for k, v in color_map.items():
+        fig.add_trace(go.Scatter(
+            x=[None],
+            y=[None],
+            mode="markers",
+            marker=dict(size=10, color=v),
+            name=k
+        ))
+
+    fig.update_layout(
+        height=450,
+        margin=dict(l=20, r=20, t=30, b=20),
+        yaxis_title="Score"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+    # reason 출력
+    latest = df_view.iloc[-1]
+
+    action = latest["action"]
+    reason = latest["reason"]
+    date = latest["date"].strftime("%Y-%m-%d")
+
+    icon_map = {
+        "skip": "✅",
+        "warm-update": "⚠️",
+        "full-retrain": "🚨"
+    }
+
+    message = f"""
+    **📌 Latest Model Decision ({date})**
+
+    **Action:** {action.upper()} {icon_map[action]}
+
+    {reason}
+    """
+
+    # action별로 박스 타입 다르게
+    if action == "skip":
+        st.info(message)
+    elif action == "warm-update":
+        st.warning(message)
     else:
-        end_date = f"2026-06-{accumulated_days - 31:02d}"
-
-    st.markdown(
-        f"""
-        <div class="range-badge">
-            <div class="range-badge-dot"></div>
-            현재 학습 범위 &nbsp;·&nbsp; <strong>{start_date} ~ {end_date}</strong>
-            &nbsp;(총 <strong>{accumulated_days}일</strong>간의 데이터 학습 중)
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown("<div style='height: 12px'></div>", unsafe_allow_html=True)
-    st.info("💡 위 결과는 시뮬레이션 기반 예측 수치이며, 실제 운항 데이터와 차이가 있을 수 있습니다.")
-    st.markdown("<div style='height: 60px'></div>", unsafe_allow_html=True)
+        st.error(message)

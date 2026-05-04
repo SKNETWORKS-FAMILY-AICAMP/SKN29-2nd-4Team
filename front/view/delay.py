@@ -126,7 +126,7 @@ def show_delay_page():
                 color: white;
             ">
                 <div class="banner-text">
-                    <h1 style="font-size: 40px; margin: 0; font-weight: 900; letter-spacing: -1.5px; color: white;">내 비행기 예상 지연 시간<br>확인하기</h1>
+                    <h1 style="font-size: 40px; margin: 0; font-weight: 900; letter-spacing: -1.5px; color: white;">내 비행기 예상 지연 확률<br>확인하기</h1>
                     <div style="width: 40px; height: 2px; background: rgba(255,255,255,0.7); margin: 18px auto;"></div>
                     <p style="font-size: 16px; line-height: 1.7; font-weight: 300; opacity: 0.9; margin: 0;">
                         항공 예약 완료 고객을 위한 실시간 지연 예측 서비스입니다.

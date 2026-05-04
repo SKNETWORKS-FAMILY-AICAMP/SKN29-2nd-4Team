@@ -169,7 +169,7 @@ def show_main_page():
         st.markdown("""
             <div class="service-card" onclick="window.parent.location.assign(window.parent.location.href + 'delay')">
                 <div style="font-size: 45px; margin-bottom: 15px;">🛬</div>
-                <div style="font-size: 22px; font-weight: 700; color: #001f3f; margin-bottom: 12px;">지연 시간 예측</div>
+                <div style="font-size: 22px; font-weight: 700; color: #001f3f; margin-bottom: 12px;">지연 여부 예측</div>
                 <div style="font-size: 15px; color: #666; line-height: 1.5;">
                     이미 예약한 항공편이 있다면,<br>현재 기상 조건에 따른 도착 시간을 예측합니다.
                 </div>
