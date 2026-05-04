@@ -8,7 +8,7 @@ import pandas as pd
 
 from back.app.service.pred_input_service import single_input, multi_input
 from back.app.service.airport_statics_service import get_mean_triptime
-from back.app.service.model_service import predict
+from back.app.service.model_service import stacking_predict, xgb_predict
 from back.app.infra.db import get_conn
 
 router = APIRouter(prefix="/api")
@@ -47,7 +47,7 @@ TOP_K = 5
 def reservation_rank(request: ReservationRankRequest, conn=Depends(get_conn)):
     start_datetimes, end_datetimes = _generate_time_candidates(conn, request)
     model_input = multi_input(conn, request.depart, request.arrive, start_datetimes, end_datetimes, request.prefered_airlines)
-    proba = predict(model_input) # list of 지연확률
+    proba = xgb_predict(model_input) # list of 지연확률
     top_indices = np.argsort(proba)[:TOP_K] # 오름차순 top_k 인덱스 번호
 
     cnt = 1
@@ -77,7 +77,7 @@ class CheckMyReservationResponse(BaseModel):
 def check_my_reservation(myreservation: Reservation, conn=Depends(get_conn)):
     r = myreservation
     model_input = single_input(conn, r.depart, r.arrive, r.depart_dt, r.arrive_dt, r.airline)
-    proba = predict(model_input)[0] # 지연확률 1개
+    proba = stacking_predict(model_input)[0] # 지연확률 1개
 
     delay = _estimate_delay(proba)
     weather = _to_weather(model_input)
