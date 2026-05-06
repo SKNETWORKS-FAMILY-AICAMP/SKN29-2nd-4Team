@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(Get-ChildItem -Path \"C:\\\\prj2\\\\back\\\\app\\\\ml\\\\\" -Recurse -File | Select-Object -ExpandProperty FullName)",
-      "PowerShell(conda run -n skn2nd python -c \"import torch; print\\('torch:', torch.__version__\\); print\\('CUDA available:', torch.cuda.is_available\\(\\)\\); print\\('GPU:', torch.cuda.get_device_name\\(0\\) if torch.cuda.is_available\\(\\) else 'N/A'\\)\")",
-      "PowerShell($env:PATH = \"C:\\\\Users\\\\seokh\\\\miniconda3\\\\envs\\\\skn2nd\\\\Library\\\\bin;C:\\\\Users\\\\seokh\\\\miniconda3\\\\envs\\\\skn2nd\\\\Library\\\\mingw-w64\\\\bin;C:\\\\Users\\\\seokh\\\\miniconda3\\\\envs\\\\skn2nd;\" + $env:PATH; $env:KMP_DUPLICATE_LIB_OK = \"TRUE\"; $env:PYTHONIOENCODING = \"utf-8\"; & \"C:\\\\Users\\\\seokh\\\\miniconda3\\\\envs\\\\skn2nd\\\\python.exe\" -u \"C:\\\\prj2\\\\back\\\\app\\\\ml\\\\rev_02\\\\train.py\" > \"C:\\\\prj2\\\\train_out.txt\" 2>&1; Write-Host \"Exit: $LASTEXITCODE\")"
-    ]
-  }
-}
