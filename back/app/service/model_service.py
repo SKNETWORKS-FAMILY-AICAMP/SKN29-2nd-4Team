@@ -8,11 +8,11 @@ print("💫 loading models from pkl")
 lgbm_artifact = joblib.load(BASE + '/lgbm_model.pkl')
 xgb_artifact = joblib.load(BASE + '/xgboost_model.pkl')
 rf_artifact = joblib.load(BASE + '/rf_model.pkl')
-meta_model = joblib.load(BASE + '/stacking_meta_rev_03.pkl')
+meta_model = joblib.load(BASE + '/stack_model.pkl')
 
 
 def stacking_predict(input_df: pd.DataFrame):
-    X_lgbm = _encode_and_select(input_df.copy(), lgbm_artifact)
+    X_lgbm = _to_category_and_select(input_df.copy(), lgbm_artifact)
     X_rf   = _encode_and_select(input_df.copy(), rf_artifact)
     X_xgb  = _to_category_and_select(input_df.copy(), xgb_artifact)
 
@@ -23,7 +23,7 @@ def stacking_predict(input_df: pd.DataFrame):
 
     # ── Stacking ──
     meta_input = np.column_stack([prob_lgbm, prob_xgb, prob_rf])
-    final_prob = meta_model.predict_proba(meta_input)[:, 1]
+    final_prob = meta_model['meta'].predict_proba(meta_input)[:, 1]
 
     return final_prob
 
