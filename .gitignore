@@ -15,3 +15,6 @@ back/data/
 *.pkl
 *.pt
 back/app/ml/models/saved_models/
+
+personal/*
+.claude/*
