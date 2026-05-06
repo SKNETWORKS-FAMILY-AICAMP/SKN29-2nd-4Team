@@ -1,5 +1,6 @@
 # python
 __pycache__
+*.pyc
 
 # vscode
 .vscode
@@ -7,7 +8,16 @@ __pycache__
 # env
 .env
 
+# Data files
+back/data/
+
+*.pkl
+*.pt
+back/app/ml/models/saved_models/
+
 # personal
 personal/*
+.claude/*
+
 
 back/models/*
