@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import os
 import base64
+from datetime import datetime
+
+from front.data import get_rank_reservations_result
 
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
@@ -258,14 +261,34 @@ def show_routeresult_page():
 
     # === 결과 테이블 ===
     st.markdown("<div class='section-heading'>✅ 추천 노선 목록</div>", unsafe_allow_html=True)
+    reservation_items = get_rank_reservations_result()
+    
+    def to_hh_mm(dt):
+        if dt is None:
+            return None
+
+        try:
+            return datetime.fromisoformat(dt).strftime("%H:%M")
+        except:
+            pass
+
+        try:
+            return datetime.strptime(dt, "%Y-%m-%d %H:%M:%S").strftime("%H:%M")
+        except:
+            pass
+
+        if len(dt) >= 5:
+            return dt[:5]
+
+        return dt
 
     data = {
-        "항공사명": ["대한항공", "델타항공", "아시아나", "유나이티드", "아메리칸항공"],
-        "출발지": ["인천(ICN)", "인천(ICN)", "인천(ICN)", "인천(ICN)", "인천(ICN)"],
-        "출발시간": ["10:30", "14:20", "17:40", "09:15", "11:50"],
-        "도착지": ["LAX", "LAX", "LAX", "LAX", "LAX"],
-        "도착시간": ["05:10", "09:00", "12:20", "04:00", "06:40"],
-        "소요시간": ["10h 40m", "10h 40m", "10h 40m", "10h 45m", "10h 50m"]
+        "항공사명": [ri.get("reservation").get("airline") for ri in reservation_items],
+        "출발지": [ri.get("reservation").get("depart") for ri in reservation_items],
+        "출발시간": [to_hh_mm(ri.get("reservation").get("depart_dt")) for ri in reservation_items],
+        "도착지": [ri.get("reservation").get("arrive") for ri in reservation_items],
+        "도착시간": [to_hh_mm(ri.get("reservation").get("arrive_dt")) for ri in reservation_items],
+        "지연확률": [f"{float(ri.get('delay'))*100:.2f}%" for ri in reservation_items]
     }
     df = pd.DataFrame(data)
 
@@ -282,7 +305,7 @@ def show_routeresult_page():
             f"<td><span class='time-badge'>{row['출발시간']}</span></td>"
             f"<td>{row['도착지']}</td>"
             f"<td><span class='time-badge'>{row['도착시간']}</span></td>"
-            f"<td><span class='duration-pill'>{row['소요시간']}</span></td>"
+            f"<td><span class='duration-pill'>{row['지연확률']}</span></td>"
             "</tr>"
         )
 
@@ -290,7 +313,7 @@ def show_routeresult_page():
         "<table class='custom-table'>"
         "<thead><tr>"
         "<th>항공사명</th><th>출발지</th><th>출발시간</th>"
-        "<th>도착지</th><th>도착시간</th><th>소요시간</th>"
+        "<th>도착지</th><th>도착시간</th><th>지연확률</th>"
         "</tr></thead>"
         "<tbody>" + rows_html + "</tbody>"
         "</table>"

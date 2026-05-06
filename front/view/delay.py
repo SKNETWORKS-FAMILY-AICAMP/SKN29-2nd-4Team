@@ -2,6 +2,9 @@ import streamlit as st
 import os
 import base64
 
+from front.utils import make_datetime
+from front.data import get_airports, get_airlines, set_user_reservation
+
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
@@ -123,7 +126,7 @@ def show_delay_page():
                 color: white;
             ">
                 <div class="banner-text">
-                    <h1 style="font-size: 40px; margin: 0; font-weight: 900; letter-spacing: -1.5px; color: white;">내 비행기 예상 지연 시간<br>확인하기</h1>
+                    <h1 style="font-size: 40px; margin: 0; font-weight: 900; letter-spacing: -1.5px; color: white;">내 비행기 예상 지연 확률<br>확인하기</h1>
                     <div style="width: 40px; height: 2px; background: rgba(255,255,255,0.7); margin: 18px auto;"></div>
                     <p style="font-size: 16px; line-height: 1.7; font-weight: 300; opacity: 0.9; margin: 0;">
                         항공 예약 완료 고객을 위한 실시간 지연 예측 서비스입니다.
@@ -136,11 +139,11 @@ def show_delay_page():
     )
 
     # 데이터 리스트
-    korea_airports = ["선택해주세요", "인천(ICN)", "김포(GMP)", "김해(PUS)", "제주(CJU)", "대구(TAE)", "청주(CJJ)"]
-    usa_airports = ["선택해주세요", "로스앤젤레스(LAX)", "뉴욕(JFK)", "샌프란시스코(SFO)", "시카고(ORD)", "시애틀(SEA)", "호놀룰루(HNL)"]
-    airline_options = ["선택해주세요", "대한항공(KAL)", "아시아나항공(AAR)", "델타항공(DAL)", "유나이티드항공(UAL)", "아메리칸항공(AAL)", "하와이안항공(HAL)", "에어부산(ABL)"]
+    airports = ["선택해주세요"] + [f"{a['name']}({a['code']})" for a in get_airports()]
+    airlines = ["선택해주세요"] + [f"{a['name']}({a['code']})" for a in get_airlines()]
+
     hour_options = [f"{i:02d}시" for i in range(24)]
-    minute_options = [f"{i:02d}분" for i in range(60)]
+    minute_options = [f"{i*10:02d}분" for i in range(6)]
 
     # === 섹션 1: 항공 일정 입력 ===
     st.markdown("<div class='section-heading'>✅ 항공 일정 입력</div>", unsafe_allow_html=True)
@@ -180,21 +183,24 @@ def show_delay_page():
 
     col_air1, col_air2, col_air3 = st.columns(3)
     with col_air1:
-        st.markdown("<div class='field-label'>출발 공항 (한국)</div>", unsafe_allow_html=True)
-        dep_airport_delay = st.selectbox("출발공항_delay", options=korea_airports, label_visibility="collapsed", key="delay_dep_airport")
+        st.markdown("<div class='field-label'>출발 공항 (미국)</div>", unsafe_allow_html=True)
+        dep_airport_delay = st.selectbox("출발공항_delay", options=airports, label_visibility="collapsed", key="delay_dep_airport")
     with col_air2:
         st.markdown("<div class='field-label'>도착 공항 (미국)</div>", unsafe_allow_html=True)
-        arr_airport_delay = st.selectbox("도착공항_delay", options=usa_airports, label_visibility="collapsed", key="delay_arr_airport")
+        arr_airport_delay = st.selectbox("도착공항_delay", options=airports, label_visibility="collapsed", key="delay_arr_airport")
     with col_air3:
         st.markdown("<div class='field-label'>항공사</div>", unsafe_allow_html=True)
-        airline_delay = st.selectbox("항공사_delay", options=airline_options, label_visibility="collapsed", key="delay_airline")
+        airline_delay = st.selectbox("항공사_delay", options=airlines, label_visibility="collapsed", key="delay_airline")
 
     st.markdown("<div style='height: 28px'></div>", unsafe_allow_html=True)
 
     # === 분석 버튼 ===
-    if st.button("⏰ 지연 시간 예측 시작하기", use_container_width=True, type="primary"):
+    if st.button("⏰ 지연 확률 예측 시작하기", use_container_width=True, type="primary"):
         if dep_airport_delay != "선택해주세요" and arr_airport_delay != "선택해주세요":
             st.session_state.page = "delayload"
+            dep_dt = make_datetime(dep_date, int(dep_hour.replace("시", "")), int(dep_min.replace("분", "")))
+            arr_dt = make_datetime(arr_date, int(arr_hour.replace("시", "")), int(arr_min.replace("분", "")))
+            set_user_reservation(dep_airport_delay[-4:-1], arr_airport_delay[-4:-1], dep_dt, arr_dt, airline_delay[-3:-1])
             st.rerun()
         else:
             st.error("출발 공항과 도착 공항을 모두 선택해 주세요!")

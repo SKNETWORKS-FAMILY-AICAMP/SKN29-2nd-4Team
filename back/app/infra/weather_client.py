@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 import pandas as pd
 import requests
 
@@ -59,41 +59,39 @@ def get_flight_weather(origin_state: str, dest_state: str, date_str: str) -> dic
     return {"date": date_str, **origin_data, **dest_data}
 
 
-def fetch_forecast(origin_state: str, dest_state: str) -> pd.DataFrame:
+def fetch_forecast(
+    origin_lat_lon: tuple[float, float],
+    dest_lat_lon: tuple[float, float],
+    start_date: date,
+    end_date: date,
+) -> pd.DataFrame:
     """
-    오늘 기준 7일 예보 데이터를 가져와서 DataFrame으로 반환
-    과거 데이터와 다르게 예보는 api.open_meteo.com을 사용
+    주어진 좌표와 기간 기준으로 일별 예보 데이터를 가져와 DataFrame으로 반환
     """
 
-    today = date.today()
-    end_date = today + timedelta(days=14) # 날짜 간격 14
+    def fetch_forecast_raw(lat: float, lon: float) -> dict:
+        url = "https://api.open-meteo.com/v1/forecast"
 
-    def fetch_forecast_raw(state: str) -> dict:
-        coords = STATE_COORDS.get(state.lower())
-
-        if coords is None:
-            raise ValueError(f"'{state}'는 등록되지 않은 주 이름입니다")
-        
-        lat, lon = coords
-
-        url = "https://api.open-meteo.com/v1/forecast"  # 예보용 엔드포인트
         params = {
             "latitude": lat,
             "longitude": lon,
-            "start_date": today.strftime("%Y-%m-%d"),
+            "start_date": start_date.strftime("%Y-%m-%d"),
             "end_date": end_date.strftime("%Y-%m-%d"),
             "daily": ",".join(DAILY_VARIABLES),
             "timezone": "America/Chicago",
         }
 
         response = requests.get(url, params=params)
-        response.raise_for_status() # 200 외 응답이면 즉시 에러 발생 (404, 500 등)
+        response.raise_for_status()
 
-        return response.json()["daily"] # 날짜별 리스트로 옴
-    
-    # 각각 예보 데이터 가져오기
-    origin_raw = fetch_forecast_raw(origin_state)
-    dest_raw = fetch_forecast_raw(dest_state)
+        return response.json()["daily"]
+
+    origin_lat, origin_lon = origin_lat_lon
+    dest_lat, dest_lon = dest_lat_lon
+
+    # API 호출
+    origin_raw = fetch_forecast_raw(origin_lat, origin_lon)
+    dest_raw = fetch_forecast_raw(dest_lat, dest_lon)
 
     dates = origin_raw["time"]
 
@@ -101,12 +99,12 @@ def fetch_forecast(origin_state: str, dest_state: str) -> pd.DataFrame:
     for i, d in enumerate(dates):
         row = {"date": d}
 
-        # origin column
+        # origin
         for var in DAILY_VARIABLES:
             col = COLUMN_MAP[var].format(prefix="origin")
             row[col] = origin_raw[var][i]
 
-        # dest column
+        # dest
         for var in DAILY_VARIABLES:
             col = COLUMN_MAP[var].format(prefix="dest")
             row[col] = dest_raw[var][i]

@@ -1,6 +1,9 @@
 import streamlit as st
 import time
 
+from front.api.app_client import AppClient
+from front.data import get_user_reservation, set_check_my_reservation
+
 def show_delayload_page():
     st.markdown(
         """
@@ -105,11 +108,16 @@ def show_delayload_page():
     # 로딩 애니메이션 및 메시지
     with st.status("🔍 지연 요인을 정밀 분석 중입니다...", expanded=True) as status:
         st.write("📡 실시간 현지 기상 상황을 수집하는 중...")
-        time.sleep(1.2)
+        time.sleep(0.6)
         st.write("✈️ 해당 항공기 경로의 정체 여부를 확인하는 중...")
-        time.sleep(1.2)
+        time.sleep(0.6)
         st.write("📊 머신러닝 알고리즘 기반 지연 확률을 계산하는 중...")
-        time.sleep(1.5)
+        
+        # 실제 api 호출
+        client = AppClient("http://localhost:8000")
+        user_reservation = get_user_reservation()
+        result = client.check_my_reservation(user_reservation)
+        set_check_my_reservation(result)
         status.update(label="분석 완료!", state="complete", expanded=False)
 
     # 분석 완료 후 결과 페이지로 이동

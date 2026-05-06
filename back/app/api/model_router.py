@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from back.app.infra.db import get_tx
-from back.app.infra.pred_models import save_model
+from back.app.infra.repo.pred_model_repo import save_model
 
 
 router = APIRouter(prefix="/models",)
@@ -18,7 +18,7 @@ def save_model_request(request: SaveModelRequest):
 
         if not model_id:
             return {
-                "status": "failed",
+                "status": "bad request",
                 "reason": f"name '{request.name}' already exsist"
             }
 

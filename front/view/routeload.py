@@ -1,6 +1,9 @@
 import streamlit as st
 import time
 
+from front.data import get_user_pref_reservations, set_rank_reservations_result
+from front.api.app_client import AppClient
+
 def show_routeload_page():
     st.markdown(
         """
@@ -105,11 +108,16 @@ def show_routeload_page():
     # 로딩 애니메이션 및 메시지
     with st.status("🚀 최적의 노선을 분석 중입니다...", expanded=True) as status:
         st.write("기상 데이터를 수집하는 중...")
-        time.sleep(1)
+        time.sleep(0.5)
         st.write("항공편 일정을 확인하는 중...")
-        time.sleep(1)
+        time.sleep(0.5)
         st.write("최적의 추천 경로를 계산하는 중...")
-        time.sleep(1)
+
+        client = AppClient("http://localhost:8000")
+        request = get_user_pref_reservations()
+        result = client.get_reservation_rank(request)
+        set_rank_reservations_result(result)
+
         status.update(label="분석 완료!", state="complete", expanded=False)
 
     # 분석 완료 후 잠시 대기했다가 결과 페이지로 이동

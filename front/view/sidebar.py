@@ -83,7 +83,7 @@ def show_sidebar():
             st.session_state.page = "route"
             st.rerun()
 
-        if st.button("⏱️  예상 지연 시간 확인", key="side_delay", use_container_width=True):
+        if st.button("⏱️  예상 지연 여부 확인", key="side_delay", use_container_width=True):
             st.session_state.page = "delay"
             st.rerun()
 

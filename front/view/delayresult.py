@@ -2,6 +2,8 @@ import streamlit as st
 import os
 import base64
 
+from front.data import get_check_my_reservation
+
 def get_base64_of_bin_file(bin_file):
     with open(bin_file, 'rb') as f:
         data = f.read()
@@ -266,62 +268,64 @@ def show_delayresult_page():
 
     # === 핵심 요약 ===
     st.markdown("<div class='section-heading'>✅ 지연 예측 요약</div>", unsafe_allow_html=True)
-
+    
+    data = get_check_my_reservation()
     col1, col2 = st.columns(2)
     with col1:
         st.markdown(
-            """
+            f"""
             <div class="metric-card">
                 <div class="metric-card-label">⏳ &nbsp;예상 지연 시간</div>
-                <div class="metric-card-value">약 25분</div>
-                <span class="metric-badge warn">▲ 평균 대비 +5분</span>
+                <div class="metric-card-value">{data.get("delay")}</div>
             </div>
             """,
+            # <span class="metric-badge warn">▲ 평균 대비 +5분</span>
             unsafe_allow_html=True
         )
     with col2:
         st.markdown(
-            """
+            f"""
             <div class="metric-card">
                 <div class="metric-card-label">📊 &nbsp;지연 발생 확률</div>
-                <div class="metric-card-value">15%</div>
-                <span class="metric-badge good">✔ 지연 가능성 낮음</span>
+                <div class="metric-card-value">{data.get("proba")*100:.2f}%</div>
             </div>
             """,
+            # <span class="metric-badge good">✔ 지연 가능성 낮음</span>
             unsafe_allow_html=True
         )
 
     # === 현지 도착지 정보 ===
     st.markdown("<div class='section-heading'>🇺🇸 도착지 현지 정보</div>", unsafe_allow_html=True)
 
+    wdata = weather_data(data)
     st.markdown(
-        """
+        f"""
         <div class="local-info-card">
             <div class="local-info-weather">
-                <span class="wi-emoji">☀️</span>
-                <div class="wi-label">맑음</div>
+                <span class="wi-emoji">{wdata.get("w_emoji")}</span>
+                <div class="wi-label">{wdata.get("weather_ko")}</div>
                 <div class="wi-sublabel">현지 기상 상태</div>
             </div>
             <div class="local-info-rows">
                 <div class="info-row">
                     <span class="info-row-label">📍 목적지</span>
-                    <span class="info-row-value">로스앤젤레스 (LAX)</span>
+                    <span class="info-row-value">{wdata.get("airport_name")}</span>
                 </div>
                 <div class="info-row">
                     <span class="info-row-label">🌡️ 현재 기온</span>
-                    <span class="info-row-value">22°C</span>
+                    <span class="info-row-value">{wdata.get("temperature")}°C</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-row-label">💨 풍속 / 습도</span>
-                    <span class="info-row-value">3m/s &nbsp;/&nbsp; 45%</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-row-label">📢 현지 알림</span>
-                    <span class="info-row-value highlight">기상 상태 양호 · 운항 원활 예상</span>
+                    <span class="info-row-label">💨 풍속</span>
+                    <span class="info-row-value">{wdata.get("wind")}m/s</span>
                 </div>
             </div>
         </div>
         """,
+        # <div class="info-row">
+        #     <span class="info-row-label">📢 현지 알림</span>
+        #     <span class="info-row-value highlight">기상 상태 양호 · 운항 원활 예상</span>
+        # </div>
         unsafe_allow_html=True
     )
 
@@ -338,3 +342,25 @@ def show_delayresult_page():
         st.rerun()
 
     st.markdown("<div style='height: 60px'></div>", unsafe_allow_html=True)
+
+def weather_data(data):
+    wdata = data.get("weather")
+    if wdata.get("weather") == 'sunny':
+        w_emoji = '☀️'
+        weather_ko = '맑음'
+    elif wdata.get("weather") == 'cloudy':
+        w_emoji = "☁️"
+        weather_ko = '흐림'
+    elif wdata.get("weather") == 'rainy':
+        w_emoji = '🌧️'
+        weather_ko = '비'
+    elif wdata.get("weather") == 'snowy':
+        w_emoji = '❄️'
+        weather_ko = '눈'
+    return {
+        "w_emoji": w_emoji,
+        "weather_ko": weather_ko,
+        "airport_name": wdata.get("airport"),
+        "temperature": float(wdata.get("temperature")),
+        "wind": float(wdata.get("wind")),
+    }
