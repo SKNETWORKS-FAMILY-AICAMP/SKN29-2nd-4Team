@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from config import STATIC_CAT_FEATURES, EMB_DIM, STATIC_HIDDEN, DYNAMIC_HIDDEN, DROPOUT
+from ml.rev_02.config import STATIC_CAT_FEATURES, EMB_DIM, STATIC_HIDDEN, DYNAMIC_HIDDEN, DROPOUT
 
 
 def _make_block(in_dim: int, out_dim: int, dropout: float, last: bool = False):

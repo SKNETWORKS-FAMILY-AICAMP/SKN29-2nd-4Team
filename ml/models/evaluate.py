@@ -12,7 +12,7 @@ from sklearn.metrics import (
     roc_auc_score, average_precision_score,
     f1_score, precision_score, recall_score,
 )
-from config import (
+from ml.models.config import (
     HPO_TEST_CSV, MODELS_DIR, PLOTS_DIR, CAT_COLS, STACK_MODEL_FILE,
     load_data, load_model, ensure_dirs,
 )
@@ -109,7 +109,7 @@ def evaluate_stacking(X_test: pd.DataFrame, y_test, test_csv: str) -> tuple[floa
 
     # 3. 데이터 인코딩 및 예측
     # Route 컬럼 확인
-    from train_stacking import _ensure_route, _apply_cat_vocab, _apply_target_enc
+    from ml.models.train_stacking import _ensure_route, _apply_cat_vocab, _apply_target_enc
     X_test = _ensure_route(X_test.copy())
 
     # 각 모델별 인코딩 적용 및 예측
@@ -141,7 +141,7 @@ def evaluate_stacking(X_test: pd.DataFrame, y_test, test_csv: str) -> tuple[floa
 
 
 def compare_all(test_csv: str = None):
-    from config import FULL_TEST_CSV
+    from ml.models.config import FULL_TEST_CSV
     csv_path = test_csv or FULL_TEST_CSV
     X_test_raw, y_test = load_data(csv_path)
 

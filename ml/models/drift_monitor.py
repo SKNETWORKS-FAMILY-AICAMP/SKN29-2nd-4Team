@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(__file__))
 import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score, classification_report, confusion_matrix
-from config import (
+from ml.models.config import (
     TARGET_COL, BINARY_MODE, CAT_COLS,
     load_model, save_model,
 )

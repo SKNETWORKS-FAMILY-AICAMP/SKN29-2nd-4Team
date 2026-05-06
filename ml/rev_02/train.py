@@ -13,13 +13,13 @@ import torch.nn as nn
 import torch.optim as optim
 from sklearn.metrics import roc_auc_score, f1_score, recall_score
 
-from config import (
+from ml.rev_02.config import (
     OUTPUT_DIR, STATIC_NUM_FEATURES, DYNAMIC_FEATURES,
     BATCH_SIZE, LR, WEIGHT_DECAY, MAX_EPOCHS, PATIENCE, SEED,
     MODEL_PATH, SCALER_PATH, ENCODER_PATH,
 )
-from data_loader import load_and_preprocess, make_loaders
-from model import TwoStageFCNN
+from ml.rev_02.data_loader import load_and_preprocess, make_loaders
+from ml.rev_02.model import TwoStageFCNN
 
 try:
     from tqdm import tqdm

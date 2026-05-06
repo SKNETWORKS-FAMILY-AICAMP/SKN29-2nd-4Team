@@ -18,12 +18,12 @@ from sklearn.metrics import (
     classification_report,
 )
 
-from config import (
+from ml.rev_02.config import (
     OUTPUT_DIR, STATIC_NUM_FEATURES, DYNAMIC_FEATURES,
     MODEL_PATH, SCALER_PATH, ENCODER_PATH, BATCH_SIZE,
 )
-from data_loader import load_and_preprocess
-from model import TwoStageFCNN
+from ml.rev_02.data_loader import load_and_preprocess
+from ml.rev_02.model import TwoStageFCNN
 
 
 def _find_best_threshold(probs: np.ndarray, labels: np.ndarray, metric: str = "f1"):

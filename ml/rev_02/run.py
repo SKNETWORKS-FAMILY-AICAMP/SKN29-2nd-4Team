@@ -9,8 +9,8 @@ os.environ["MKL_THREADING_LAYER"] = "INTEL"
 os.environ.setdefault("OMP_NUM_THREADS", "4")
 os.environ.setdefault("MKL_NUM_THREADS", "4")
 
-from train import run_training
-from evaluate import run_evaluation
+from ml.rev_02.train import run_training
+from ml.rev_02.evaluate import run_evaluation
 
 
 def main():

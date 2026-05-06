@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 
-from config import (
+from ml.rev_02.config import (
     TRAIN_FILE, TEST_FILE, TARGET, BINARY_MODE,
     STATIC_NUM_FEATURES, STATIC_CAT_FEATURES, DYNAMIC_FEATURES,
     BATCH_SIZE, POS_WEIGHT_MUL,

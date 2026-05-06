@@ -8,7 +8,7 @@ import optuna
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score
-from config import (
+from ml.models.config import (
     HPO_TRAIN_CSV, HPO_TEST_CSV, FULL_TRAIN_CSV, FULL_TEST_CSV, RANDOM_SEED, N_TRIALS,
     load_data, encode_with_target,
     save_params, load_params, params_exist,

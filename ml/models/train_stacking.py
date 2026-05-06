@@ -19,7 +19,7 @@ from sklearn.metrics import (
     roc_auc_score, average_precision_score, accuracy_score,
     precision_recall_fscore_support,
 )
-from config import (
+from ml.models.config import (
     FULL_TRAIN_CSV, FULL_TEST_CSV,
     RANDOM_SEED, CAT_COLS, MODELS_DIR,
     STACK_MODEL_FILE, load_data, ensure_dirs,
@@ -98,7 +98,7 @@ def train_stacking():
     from xgboost import XGBClassifier
     from lightgbm import LGBMClassifier
     from sklearn.ensemble import RandomForestClassifier
-    from config import load_params, params_exist, compute_class_weights
+    from ml.models.config import load_params, params_exist, compute_class_weights
 
     print("\nBase 모델 초기화 및 학습")
 
@@ -127,7 +127,7 @@ def train_stacking():
     rf = RandomForestClassifier(**rf_params)
 
     # 1. XGB & LGBM (Category 인코딩)
-    from config import encode_as_category, encode_with_target
+    from ml.models.config import encode_as_category, encode_with_target
     
     # Route 컬럼 확보 후 피처 순서 결정
     X_base  = _ensure_route(X_base)
