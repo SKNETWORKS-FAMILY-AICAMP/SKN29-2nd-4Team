@@ -11,10 +11,13 @@ __pycache__
 # Data files
 back/data/
 
-# ML model binaries
 *.pkl
 *.pt
 back/app/ml/models/saved_models/
 
+# personal
 personal/*
 .claude/*
+
+
+back/models/*

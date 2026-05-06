@@ -12,7 +12,7 @@ def get_connection():
         password=settings.DB_PASSWORD.get_secret_value(),
         database=settings.DB_NAME,
         charset="utf8mb4",
-        cursorclass=pymysql.cursors.DictCursor,
+        cursorclass=pymysql.cursors.Cursor,
         autocommit=False,
     )
 
@@ -39,10 +39,11 @@ def get_tx():
         conn.close()
 
 
-def test_connection(conn):
+def test_connection():
     try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT 1")
+        with get_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
 
         print("✅ DB Connection success")
 
