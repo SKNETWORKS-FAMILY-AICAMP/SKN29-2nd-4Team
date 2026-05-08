@@ -16,7 +16,7 @@
 
 본 프로젝트는 이러한 문제를 해결하기 위해 **항공편의 지연 가능성을 사전에 예측**하고, 사용자가 더 안정적인 항공편 또는 노선을 선택할 수 있도록 돕는 것을 목표로 한다.
 
-![프로젝트 선정 배경](ai_preprocessing_result_assets/page-04.png)
+![프로젝트 선정 배경](assets/page-04.png)
 
 ### 1-2. 비즈니스 목표
 
@@ -36,7 +36,7 @@
 | 활용 방안 | 최적 항공편 추천, 구매 예정/구매 완료 항공편의 지연 가능성 확인 |
 | 기대 효과 | 항공 지연으로 인한 일정 및 비용 손실 최소화 |
 
-![프로젝트 목표](ai_preprocessing_result_assets/page-05.png)
+![프로젝트 목표](assets/page-05.png)
 
 ### 1-4. 성공 기준
 
@@ -63,7 +63,7 @@
 | 지연 비율 | 약 17.5% |
 | 공항 수 | 377개 |
 
-![타겟 변수 설정 및 데이터 정보](ai_preprocessing_result_assets_refined/fig_01_target_variable.png)
+![타겟 변수 설정 및 데이터 정보](assets/fig_01_target_variable.png)
 
 ### 2-2. 특성 목록 및 설명
 
@@ -113,14 +113,14 @@ DelayTarget = 1 if ArrDelayMinutes >= 15 else 0
 
 이는 항공편 지연이 단순히 특정 항공편 하나의 문제가 아니라, 전체 항공 수요, 운항 환경, 공항 혼잡도와 함께 변화하는 문제라는 점을 보여준다.
 
-![연도별 출발/도착 지연률](ai_preprocessing_result_assets_refined/fig_01_target_variable.png)
+![연도별 출발/도착 지연률](assets/fig_01_target_variable.png)
 
 ### 3-3. 수치형 특성 간 상관관계
 
 상관관계 분석 결과, 일부 시간·거리 계열 피쳐에서 강한 상관관계가 확인되었다.  
 예를 들어 비행 거리가 길어질수록 예정 소요시간과 실제 비행시간도 함께 증가하기 때문에, `Distance`, `CRSElapsedTime`, `AirTime`, 노선 평균 비행시간 계열 변수들이 서로 비슷한 정보를 담게 된다.
 
-![상관관계 히트맵](ai_preprocessing_result_assets_refined/fig_02_correlation_heatmap.png)
+![상관관계 히트맵](assets/fig_02_correlation_heatmap.png)
 
 상관관계 분석을 통해 확인한 핵심은 다음과 같다.
 
@@ -135,9 +135,9 @@ DelayTarget = 1 if ArrDelayMinutes >= 15 else 0
 
 EDA에서 확인한 주요 분포는 다음과 같다.
 
-![EDA 주요 발견사항 1](ai_preprocessing_result_assets_refined/fig_03_eda_distribution_weather.png)
+![EDA 주요 발견사항 1](assets/fig_03_eda_distribution_weather.png)
 
-![EDA 주요 발견사항 2](ai_preprocessing_result_assets_refined/fig_04_eda_numeric_categorical.png)
+![EDA 주요 발견사항 2](assets/fig_04_eda_numeric_categorical.png)
 
 #### 3-4-1. 지연 구간별 분포
 
@@ -190,7 +190,7 @@ dest_has_snow     = dest_snowfall_cm > 0
 결측값 상위 컬럼은 대부분 실제 운항 이후에만 확정되는 컬럼에서 발생하였다.  
 대표적으로 `AirTime`, `ArrDelayMinutes`, `ArrivalDelayGroups`, `ArrDel15`, `ArrDelay`, `ActualElapsedTime`, `TaxiIn`, `WheelsOn`, `ArrTime`, `TaxiOut` 등이 결측 상위 컬럼으로 확인되었다.
 
-![결측값 처리](ai_preprocessing_result_assets_refined/fig_05_missing_values.png)
+![결측값 처리](assets/fig_05_missing_values.png)
 
 결측값 처리 기준은 다음과 같다.
 
@@ -209,7 +209,7 @@ dest_has_snow     = dest_snowfall_cm > 0
 도착 지연 시간은 대부분 짧은 지연에 몰려 있지만, 일부 항공편에서 수백 분 이상의 극단적인 지연이 발생한다.  
 발표 자료에서는 Train/Test 각각의 `ArrDelayMinutes` 분포를 확인하고, 상위 99.9% 분위수 기준선을 함께 표시하였다.
 
-![도착 지연 시간 이상값 분포](ai_preprocessing_result_assets_refined/fig_08_outlier_distribution.png)
+![도착 지연 시간 이상값 분포](assets/fig_08_outlier_distribution.png)
 
 | 특성명 | 이상값 판단 기준 | 처리 방법 | 근거 |
 |---|---|---|---|
@@ -241,7 +241,7 @@ dest_has_snow     = dest_snowfall_cm > 0
 
 1차 최종 피쳐는 총 50개로 구성하였고, 발표 자료에서는 이를 7개 그룹으로 나누어 정리하였다.
 
-![1차 최종 피쳐 구성](ai_preprocessing_result_assets_refined/fig_06_feature_groups.png)
+![1차 최종 피쳐 구성](assets/fig_06_feature_groups.png)
 
 | 그룹 | 생성/활용 피쳐 | 생성 근거 |
 |---|---|---|
@@ -317,7 +317,7 @@ dest_has_snow     = dest_snowfall_cm > 0
 2. 중복성이 높은 다중공선성 피쳐 제거
 3. 모델 중요도와 해석성을 고려한 피쳐 제거
 
-![다중공선성 분석 및 피쳐 정리](ai_preprocessing_result_assets_refined/fig_09_multicollinearity_feature_selection.png)
+![다중공선성 분석 및 피쳐 정리](assets/fig_09_multicollinearity_feature_selection.png)
 
 #### 다중공선성 및 중요도 기반 제거 피쳐
 
@@ -353,7 +353,7 @@ dest_has_snow     = dest_snowfall_cm > 0
 
 Train/Test를 **6.5 : 3.5** 비율로 분리하였다.
 
-![학습 검증 데이터 분리](ai_preprocessing_result_assets_refined/fig_07_train_test_split.png)
+![학습 검증 데이터 분리](assets/fig_07_train_test_split.png)
 
 | 항목 | 설명 |
 |---|---|

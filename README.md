@@ -1,5 +1,5 @@
 ### 결과서
-- [데이터 전처리 결과서](reports/1_data_preprocessing_report.md)
+- [데이터 전처리 결과서](reports/1_ai_preprocessing_result_report.md)
 - [모델 학습 결과서](reports/2_model_training_report.md)
 - [모델 메타데이터](reports/3_model_metadata.md)
 
