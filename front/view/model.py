@@ -14,6 +14,10 @@ import numpy as np
 # ─────────────────────────────────────────────
 # MOCK DATA
 # ─────────────────────────────────────────────
+"""
+online learning용 7월 데이터셋의 분포가 학습데이터와 크게 다르지 않아
+시각화용 mock 데이터로 대체하였음
+"""
 def generate_mock_learning_curve():
     np.random.seed(42)
 
